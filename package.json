@@ -1,0 +1,16 @@
+{
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "esbuild": "^0.28.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "scripts": {
+    "build": "esbuild content.ts popup.ts background.ts inject.ts --bundle --outdir=dist --platform=browser --define:DEBUG_GRAPHQL_VIEW=false",
+    "build:debug": "esbuild content.ts popup.ts background.ts inject.ts --bundle --outdir=dist --platform=browser --define:DEBUG_GRAPHQL_VIEW=true",
+    "watch": "esbuild content.ts popup.ts background.ts inject.ts --bundle --outdir=dist --platform=browser --watch --define:DEBUG_GRAPHQL_VIEW=true",
+    "test": "vitest",
+    "test:run": "vitest run"
+  }
+}

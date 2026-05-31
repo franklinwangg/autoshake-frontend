@@ -1,0 +1,344 @@
+h1 {
+	font-size: 2rem;
+}
+
+body {
+	font-family: Arial, sans-serif;
+	padding: 16px;
+	text-align: center;
+	min-width: 600px;
+}
+
+.hidden {
+	display: none !important;
+}
+
+.active {
+	display: flex !important;
+}
+
+#mainView.active {
+	display: block !important;
+}
+
+.toggle-container {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+ 	margin-top: 12px;
+}
+
+.switch {
+	position: relative;
+	display: inline-block;
+	width: 68px;
+	height: 38px;
+}
+
+.switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #ccc;
+	transition: 0.2s;
+	border-radius: 34px;
+}
+
+.slider:before {
+	position: absolute;
+	content: "";
+	height: 30px;
+	width: 30px;
+	left: 4px;
+	bottom: 4px;
+	background-color: white;
+	transition: 0.2s;
+	border-radius: 50%;
+}
+
+input:checked + .slider {
+	background-color: #4caf50;
+}
+
+input:checked + .slider:before {
+	transform: translateX(30px);
+}
+
+.state-text {
+	font-size: 1.25rem;
+}
+
+#jobList {
+	margin-top: 20px;
+	max-height: 500px;
+	overflow-y: auto;
+	text-align: left;
+}
+
+#jobList h2 {
+	text-align: center;
+	margin-bottom: 12px;
+}
+
+.jobs-container {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	justify-content: center;
+}
+
+.job-item {
+	background-color: #f5f5f5;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	padding: 12px;
+	min-width: 250px;
+	max-width: 250px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	position: relative;
+}
+
+.job-item:hover {
+	background-color: #e8f5e9;
+	border-color: #4c61af;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+	transform: translateY(-2px);
+}
+
+.delete-button {
+	position: absolute;
+	top: 4px;
+	right: 8px;
+	background: none;
+	border: none;
+	color: #999;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0;
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	transition: all 0.2s ease;
+}
+
+.delete-button:hover {
+	background-color: #ff4444;
+	color: white;
+}
+
+.job-title {
+	font-weight: bold;
+	margin-bottom: 6px;
+	word-break: break-word;
+	color: #333;
+	font-size: 0.95rem;
+}
+
+.job-meta {
+	font-size: 0.85rem;
+	color: #666;
+}
+
+#loginView {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 200px;
+}
+
+.login-title {
+	font-size: 2rem;
+	margin-bottom: 24px;
+}
+
+.login-form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	width: 280px;
+}
+
+.login-input {
+	padding: 10px 14px;
+	font-size: 14px;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	outline: none;
+}
+
+.login-input:focus {
+	border-color: #4c61af;
+}
+
+.login-error {
+	color: #d32f2f;
+	font-size: 0.85rem;
+	min-height: 1.2em;
+}
+
+.login-button {
+	padding: 10px;
+	font-size: 16px;
+	background-color: #4c61af;
+	color: white;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.login-button:hover {
+	background-color: #3b4f8f;
+}
+
+.link-container {
+	text-align: center;
+	margin-top: 12px;
+}
+
+.auth-link {
+	background: none;
+	border: none;
+	color: #4CAF50;
+	cursor: pointer;
+	font-size: 12px;
+	text-decoration: underline;
+	padding: 0;
+}
+
+#createAccountView {
+	display: none;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 200px;
+}
+
+#mainView {
+	display: none;
+}
+
+.main-header {
+	position: relative;
+	margin-bottom: 16px;
+}
+
+.main-header h1 {
+	text-align: center;
+	margin: 0;
+}
+
+.header-actions {
+	position: absolute;
+	top: 0;
+	right: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+
+#logoutButton {
+	padding: 6px 12px;
+	background-color: #EF9A9A;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+#usernameDisplay {
+	color: #666;
+	font-size: 14px;
+	margin-top: 6px;
+}
+
+.graphql-section-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.submit-container {
+	margin-top: 20px;
+	padding-top: 20px;
+	border-top: 1px solid #ddd;
+}
+
+#submitButton {
+	width: 100%;
+	padding: 10px;
+	border: none;
+	border-radius: 4px;
+	font-size: 16px;
+}
+
+#submitButton:disabled {
+	background-color: #cccccc;
+	color: #666;
+	cursor: not-allowed;
+}
+
+#submitButton:not(:disabled) {
+	background-color: #4CAF50;
+	color: white;
+	cursor: pointer;
+}
+
+.no-data-text {
+	color: #999;
+}
+
+.graphql-item {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.graphql-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  cursor: pointer;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.graphql-header:hover { background: #e8e8e8; }
+
+.graphql-op { font-weight: bold; color: #333; }
+.graphql-time { color: #999; font-size: 11px; }
+.graphql-toggle { color: #666; font-size: 10px; }
+
+.graphql-body {
+  display: none;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px;
+  margin: 0;
+  font-size: 11px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 0 0 4px 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

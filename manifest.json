@@ -1,0 +1,27 @@
+﻿{
+  "name": "AutoShake AI",
+  "description": "Tailored resume generation for Handshake",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "hello.html",
+    "default_icon": "images/temp_logo.png"
+  },
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.joinhandshake.com/*"],
+      "js": ["dist/inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://*.joinhandshake.com/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": ["scripting", "storage", "tabs"]
+}
