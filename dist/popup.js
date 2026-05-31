@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  // inject.ts
+  // src/agents/inject.ts
   var IsObject = (value) => value !== null && typeof value === "object";
   var NormalizeId = (value) => {
     if (typeof value === "string" && /^\d+$/.test(value)) return value;
@@ -126,7 +126,7 @@
     });
   })();
 
-  // popupUtils.ts
+  // src/utils/popupUtils.ts
   var MS_PER_MINUTE = 6e4;
   var MINUTES_PER_HOUR = 60;
   var HOURS_PER_DAY = 24;
@@ -183,46 +183,48 @@
     return null;
   }
 
-  // popup.ts
+  // src/agents/popup.ts
+  var authMode = "login";
   var toggle = null;
   var stateText = null;
   var jobList = null;
   var graphqlToggleButton = null;
   var submitButton = null;
+  var welcomeView = null;
   var loginView = null;
   var mainView = null;
-  var createAccountView = null;
-  function ShowLoginView() {
-    if (loginView) loginView.classList.add("active");
-    if (loginView) loginView.classList.remove("hidden");
-    if (mainView) mainView.classList.add("hidden");
-    if (mainView) mainView.classList.remove("active");
-    if (createAccountView) createAccountView.classList.add("hidden");
-    if (createAccountView) createAccountView.classList.remove("active");
+  var ALL_VIEWS = () => [welcomeView, loginView, mainView];
+  function ShowStep(step) {
+    ALL_VIEWS().forEach((v) => {
+      if (v) {
+        v.classList.add("hidden");
+        v.classList.remove("active");
+      }
+    });
+    const views = {
+      1: welcomeView,
+      2: loginView
+    };
+    const target = views[step];
+    if (target) {
+      target.classList.remove("hidden");
+      target.classList.add("active");
+    }
   }
-  function ShowCreateAccountView() {
-    if (loginView) loginView.classList.add("hidden");
-    if (loginView) loginView.classList.remove("active");
-    if (createAccountView) createAccountView.classList.add("active");
-    if (createAccountView) createAccountView.classList.remove("hidden");
-    if (mainView) mainView.classList.add("hidden");
-    if (mainView) mainView.classList.remove("active");
-    const createUsernameInput = document.getElementById("createUsernameInput");
-    const createPasswordInput = document.getElementById("createPasswordInput");
-    const confirmPasswordInput = document.getElementById("confirmPasswordInput");
-    const createAccountError = document.getElementById("createAccountError");
-    if (createUsernameInput) createUsernameInput.value = "";
-    if (createPasswordInput) createPasswordInput.value = "";
-    if (confirmPasswordInput) confirmPasswordInput.value = "";
-    if (createAccountError) createAccountError.textContent = "";
+  function ShowLoginView() {
+    ShowStep(2);
   }
   function ShowMainView() {
-    if (loginView) loginView.classList.add("hidden");
-    if (loginView) loginView.classList.remove("active");
-    if (mainView) mainView.classList.add("active");
-    if (mainView) mainView.classList.remove("hidden");
-    if (createAccountView) createAccountView.classList.add("hidden");
-    if (createAccountView) createAccountView.classList.remove("active");
+    ALL_VIEWS().forEach((v) => {
+      if (v) {
+        v.classList.add("hidden");
+        v.classList.remove("active");
+      }
+    });
+    if (mainView) {
+      mainView.classList.add("active");
+      mainView.classList.remove("hidden");
+    }
     chrome.storage.local.get(["username"], (result) => {
       const usernameDisplay = document.getElementById("usernameDisplay");
       if (usernameDisplay && result.username) {
@@ -232,44 +234,58 @@
     InitializePopupDOMElements();
     InitializePopup();
   }
-  function HandleLogin() {
-    const usernameInput = document.getElementById("usernameInput");
-    const passwordInput = document.getElementById("passwordInput");
-    const loginError = document.getElementById("loginError");
-    const username = usernameInput?.value.trim() ?? "";
+  function ShowChecklistPanel() {
+    const authPanel = document.getElementById("authPanel");
+    const checklistPanel = document.getElementById("checklistPanel");
+    if (authPanel) authPanel.classList.add("hidden");
+    if (checklistPanel) {
+      checklistPanel.classList.remove("hidden");
+    }
+  }
+  function SetAuthMode(mode) {
+    authMode = mode;
+    const loginTab = document.getElementById("loginTab");
+    const signupTab = document.getElementById("signupTab");
+    const submitBtn = document.getElementById("authSubmitButton");
+    loginTab?.classList.toggle("auth-tab-active", mode === "login");
+    signupTab?.classList.toggle("auth-tab-active", mode === "signup");
+    if (submitBtn) submitBtn.textContent = mode === "login" ? "Log In" : "Sign Up";
+  }
+  function HandleAuth() {
+    const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("authPasswordInput");
+    const authError = document.getElementById("authError");
+    const email = emailInput?.value.trim() ?? "";
     const password = passwordInput?.value ?? "";
-    if (loginError) loginError.textContent = "";
-    if (!username || !password) {
-      if (loginError) loginError.textContent = "Please enter a username and password.";
+    if (authError) authError.textContent = "";
+    if (!email || !password) {
+      if (authError) authError.textContent = "Please enter your email and password.";
       return;
     }
-    chrome.storage.local.set({ username }, () => {
-      if (usernameInput) usernameInput.value = "";
+    const endpoint = authMode === "login" ? "/login" : "/sign-up";
+    console.log(`[AutoShake] Mock POST ${endpoint}:`, email);
+    chrome.storage.local.set({ username: email }, () => {
+      if (emailInput) emailInput.value = "";
       if (passwordInput) passwordInput.value = "";
-      ShowMainView();
+      ShowChecklistPanel();
     });
   }
-  function HandleCreateAccount() {
-    const createUsernameInput = document.getElementById("createUsernameInput");
-    const createPasswordInput = document.getElementById("createPasswordInput");
-    const confirmPasswordInput = document.getElementById("confirmPasswordInput");
-    const createAccountError = document.getElementById("createAccountError");
-    const username = createUsernameInput?.value.trim() ?? "";
-    const password = createPasswordInput?.value ?? "";
-    const confirmPassword = confirmPasswordInput?.value ?? "";
-    if (createAccountError) createAccountError.textContent = "";
-    if (!username || !password || !confirmPassword) {
-      if (createAccountError) createAccountError.textContent = "Please fill in all fields.";
+  function HandleResumeUpload(file) {
+    if (file.type !== "application/pdf") {
+      const authError = document.getElementById("authError");
+      if (authError) authError.textContent = "Please upload a PDF file.";
       return;
     }
-    if (password !== confirmPassword) {
-      if (createAccountError) createAccountError.textContent = "Passwords do not match.";
-      return;
+    const dropZone = document.getElementById("dropZone");
+    const resumeCheckItem = document.getElementById("resumeCheckItem");
+    const continueButton = document.getElementById("continueButton");
+    console.log("[AutoShake] Mock POST /upload-resume:", file.name);
+    if (dropZone) {
+      dropZone.innerHTML = `<p class="upload-success">\u2713 ${file.name}</p>`;
+      dropZone.classList.add("upload-done");
     }
-    if (createUsernameInput) createUsernameInput.value = "";
-    if (createPasswordInput) createPasswordInput.value = "";
-    if (confirmPasswordInput) confirmPasswordInput.value = "";
-    ShowLoginView();
+    if (resumeCheckItem) resumeCheckItem.classList.add("checked");
+    if (continueButton) continueButton.disabled = false;
   }
   function HandleLogout() {
     chrome.storage.local.set({ username: "" }, () => {
@@ -424,38 +440,43 @@
     submitButton?.addEventListener("click", SubmitJobList);
   }
   if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chrome.storage !== "undefined" && typeof globalThis.vi === "undefined") {
+    welcomeView = document.getElementById("welcomeView");
     loginView = document.getElementById("loginView");
     mainView = document.getElementById("mainView");
-    createAccountView = document.getElementById("createAccountView");
+    document.getElementById("getStartedButton")?.addEventListener("click", () => ShowStep(2));
+    document.getElementById("loginTab")?.addEventListener("click", () => SetAuthMode("login"));
+    document.getElementById("signupTab")?.addEventListener("click", () => SetAuthMode("signup"));
+    document.getElementById("authSubmitButton")?.addEventListener("click", HandleAuth);
+    document.getElementById("authPasswordInput")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") HandleAuth();
+    });
+    const fileInput = document.getElementById("fileInput");
+    fileInput?.addEventListener("change", () => {
+      if (fileInput.files?.[0]) HandleResumeUpload(fileInput.files[0]);
+    });
+    const dropZone = document.getElementById("dropZone");
+    dropZone?.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("drop-zone-hover");
+    });
+    dropZone?.addEventListener("dragleave", () => dropZone.classList.remove("drop-zone-hover"));
+    dropZone?.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("drop-zone-hover");
+      const file = e.dataTransfer?.files[0];
+      if (file) HandleResumeUpload(file);
+    });
+    document.getElementById("continueButton")?.addEventListener("click", () => ShowStep(3));
     if (true) {
-      const graphqlHeader = document.querySelector(".graphql-section-header");
-      const graphqlContainer = document.getElementById("graphqlResponses");
-      if (graphqlHeader) graphqlHeader.classList.add("hidden");
-      if (graphqlContainer) graphqlContainer.classList.add("hidden");
+      document.querySelector(".graphql-section-header")?.classList.add("hidden");
+      document.getElementById("graphqlResponses")?.classList.add("hidden");
     }
-    const loginButton = document.getElementById("loginButton");
-    loginButton?.addEventListener("click", HandleLogin);
-    const logoutButton = document.getElementById("logoutButton");
-    logoutButton?.addEventListener("click", HandleLogout);
-    const createAccountLink = document.getElementById("createAccountLink");
-    createAccountLink?.addEventListener("click", ShowCreateAccountView);
-    const createAccountButton = document.getElementById("createAccountButton");
-    createAccountButton?.addEventListener("click", HandleCreateAccount);
-    const backToLoginLink = document.getElementById("backToLoginLink");
-    backToLoginLink?.addEventListener("click", ShowLoginView);
-    const passwordInput = document.getElementById("passwordInput");
-    passwordInput?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") HandleLogin();
-    });
-    const confirmPasswordInput = document.getElementById("confirmPasswordInput");
-    confirmPasswordInput?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") HandleCreateAccount();
-    });
+    document.getElementById("logoutButton")?.addEventListener("click", HandleLogout);
     chrome.storage.local.get(["username"], (result) => {
       if (result.username) {
         ShowMainView();
       } else {
-        ShowLoginView();
+        ShowStep(1);
       }
     });
   }

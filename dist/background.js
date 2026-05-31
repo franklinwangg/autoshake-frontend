@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  // background.ts
+  // src/agents/background.ts
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "storeJob" || !message.jobEntry) {
       return false;

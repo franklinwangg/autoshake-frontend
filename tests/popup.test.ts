@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ExtractJobField, GetFieldFromObject } from '../popupUtils';
-import type { GraphqlResponse } from '../types';
+import { ExtractJobField, GetFieldFromObject } from '../src/utils/popupUtils';
+import type { GraphqlResponse } from '../src/types/types';
 
 // ============ GetFieldFromObject Tests ============
 describe('GetFieldFromObject_givenSingleLevelPath_returnsValue', () => {

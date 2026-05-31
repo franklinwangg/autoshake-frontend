@@ -1,4 +1,4 @@
-import type { GraphqlResponse } from './types';
+import type { GraphqlResponse } from '../types/types';
 
 type UnknownRecord = Record<string, unknown>;
 

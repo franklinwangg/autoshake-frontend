@@ -1,5 +1,5 @@
-import type { JobRecord, JobData, StorageResult, GraphqlResponse } from './types';
-import { GetRelativeTime, GetFieldFromObject, ExtractJobField } from './popupUtils';
+import type { JobRecord, JobData, StorageResult, GraphqlResponse } from '../types/types';
+import { GetRelativeTime, GetFieldFromObject, ExtractJobField } from '../utils/popupUtils';
 import { IsObject } from './inject';
 
 // Compile-time debug flag for GraphQL view
@@ -9,121 +9,116 @@ interface ParsedGraphQLData {
 	[key: string]: unknown;
 }
 
+let authMode: "login" | "signup" = "login";
+
 let toggle: HTMLInputElement | null = null;
 let stateText: HTMLElement | null = null;
 let jobList: HTMLElement | null = null;
 let graphqlToggleButton: HTMLElement | null = null;
 let graphqlStats: HTMLElement | null = null;
 let submitButton: HTMLButtonElement | null = null;
+let welcomeView: HTMLElement | null = null;
 let loginView: HTMLElement | null = null;
 let mainView: HTMLElement | null = null;
-let createAccountView: HTMLElement | null = null;
 
-function ShowLoginView(): void {
-	if (loginView) loginView.classList.add("active");
-	if (loginView) loginView.classList.remove("hidden");
-	if (mainView) mainView.classList.add("hidden");
-	if (mainView) mainView.classList.remove("active");
-	if (createAccountView) createAccountView.classList.add("hidden");
-	if (createAccountView) createAccountView.classList.remove("active");
+const ALL_VIEWS = () => [welcomeView, loginView, mainView];
+
+function ShowStep(step: number): void {
+	ALL_VIEWS().forEach(v => {
+		if (v) { v.classList.add("hidden"); v.classList.remove("active"); }
+	});
+	const views: Record<number, HTMLElement | null> = {
+		1: welcomeView,
+		2: loginView,
+	};
+	const target = views[step];
+	if (target) { target.classList.remove("hidden"); target.classList.add("active"); }
 }
 
-function ShowCreateAccountView(): void {
-	if (loginView) loginView.classList.add("hidden");
-	if (loginView) loginView.classList.remove("active");
-	if (createAccountView) createAccountView.classList.add("active");
-	if (createAccountView) createAccountView.classList.remove("hidden");
-	if (mainView) mainView.classList.add("hidden");
-	if (mainView) mainView.classList.remove("active");
-	
-	// Clear form inputs
-	const createUsernameInput = document.getElementById("createUsernameInput") as HTMLInputElement | null;
-	const createPasswordInput = document.getElementById("createPasswordInput") as HTMLInputElement | null;
-	const confirmPasswordInput = document.getElementById("confirmPasswordInput") as HTMLInputElement | null;
-	const createAccountError = document.getElementById("createAccountError");
-	
-	if (createUsernameInput) createUsernameInput.value = "";
-	if (createPasswordInput) createPasswordInput.value = "";
-	if (confirmPasswordInput) confirmPasswordInput.value = "";
-	if (createAccountError) createAccountError.textContent = "";
+function ShowLoginView(): void {
+	ShowStep(2);
 }
 
 function ShowMainView(): void {
-	if (loginView) loginView.classList.add("hidden");
-	if (loginView) loginView.classList.remove("active");
-	if (mainView) mainView.classList.add("active");
-	if (mainView) mainView.classList.remove("hidden");
-	if (createAccountView) createAccountView.classList.add("hidden");
-	if (createAccountView) createAccountView.classList.remove("active");
-	
-	// Display username in header
+	ALL_VIEWS().forEach(v => {
+		if (v) { v.classList.add("hidden"); v.classList.remove("active"); }
+	});
+	if (mainView) { mainView.classList.add("active"); mainView.classList.remove("hidden"); }
+
 	chrome.storage.local.get(["username"], (result: StorageResult) => {
 		const usernameDisplay = document.getElementById("usernameDisplay");
 		if (usernameDisplay && result.username) {
 			usernameDisplay.textContent = `Logged in as: ${result.username}`;
 		}
 	});
-	
+
 	InitializePopupDOMElements();
 	InitializePopup();
 }
 
-function HandleLogin(): void {
-	const usernameInput = document.getElementById("usernameInput") as HTMLInputElement | null;
-	const passwordInput = document.getElementById("passwordInput") as HTMLInputElement | null;
-	const loginError = document.getElementById("loginError");
+function ShowChecklistPanel(): void {
+	const authPanel = document.getElementById("authPanel");
+	const checklistPanel = document.getElementById("checklistPanel");
+	if (authPanel) authPanel.classList.add("hidden");
+	if (checklistPanel) { checklistPanel.classList.remove("hidden"); }
+}
 
-	const username = usernameInput?.value.trim() ?? "";
+function SetAuthMode(mode: "login" | "signup"): void {
+	authMode = mode;
+	const loginTab = document.getElementById("loginTab");
+	const signupTab = document.getElementById("signupTab");
+	const submitBtn = document.getElementById("authSubmitButton");
+	loginTab?.classList.toggle("auth-tab-active", mode === "login");
+	signupTab?.classList.toggle("auth-tab-active", mode === "signup");
+	if (submitBtn) submitBtn.textContent = mode === "login" ? "Log In" : "Sign Up";
+}
+
+function HandleAuth(): void {
+	const emailInput = document.getElementById("emailInput") as HTMLInputElement | null;
+	const passwordInput = document.getElementById("authPasswordInput") as HTMLInputElement | null;
+	const authError = document.getElementById("authError");
+
+	const email = emailInput?.value.trim() ?? "";
 	const password = passwordInput?.value ?? "";
 
-	// Clear any existing errors
-	if (loginError) loginError.textContent = "";
+	if (authError) authError.textContent = "";
 
-	if (!username || !password) {
-		if (loginError) loginError.textContent = "Please enter a username and password.";
+	if (!email || !password) {
+		if (authError) authError.textContent = "Please enter your email and password.";
 		return;
 	}
 
-	// BACKEND TODO: Validate credentials against the backend server
-	// For now, always succeeds (no backend validation)
-	chrome.storage.local.set({ username }, () => {
-		// Clear form inputs after successful login
-		if (usernameInput) usernameInput.value = "";
+	const endpoint = authMode === "login" ? "/login" : "/sign-up";
+	console.log(`[AutoShake] Mock POST ${endpoint}:`, email);
+
+	// BACKEND TODO: POST { email, password } to endpoint
+	chrome.storage.local.set({ username: email }, () => {
+		if (emailInput) emailInput.value = "";
 		if (passwordInput) passwordInput.value = "";
-		ShowMainView();
+		ShowChecklistPanel();
 	});
 }
 
-function HandleCreateAccount(): void {
-	const createUsernameInput = document.getElementById("createUsernameInput") as HTMLInputElement | null;
-	const createPasswordInput = document.getElementById("createPasswordInput") as HTMLInputElement | null;
-	const confirmPasswordInput = document.getElementById("confirmPasswordInput") as HTMLInputElement | null;
-	const createAccountError = document.getElementById("createAccountError");
-
-	const username = createUsernameInput?.value.trim() ?? "";
-	const password = createPasswordInput?.value ?? "";
-	const confirmPassword = confirmPasswordInput?.value ?? "";
-
-	// Clear any existing errors
-	if (createAccountError) createAccountError.textContent = "";
-
-	if (!username || !password || !confirmPassword) {
-		if (createAccountError) createAccountError.textContent = "Please fill in all fields.";
+function HandleResumeUpload(file: File): void {
+	if (file.type !== "application/pdf") {
+		const authError = document.getElementById("authError");
+		if (authError) authError.textContent = "Please upload a PDF file.";
 		return;
 	}
 
-	if (password !== confirmPassword) {
-		if (createAccountError) createAccountError.textContent = "Passwords do not match.";
-		return;
-	}
+	const dropZone = document.getElementById("dropZone");
+	const resumeCheckItem = document.getElementById("resumeCheckItem");
+	const continueButton = document.getElementById("continueButton") as HTMLButtonElement | null;
 
-	// BACKEND TODO: Send account creation request to the backend server
-	// with username and password to create a new user account
-	// For now, just clear inputs and return to login
-	if (createUsernameInput) createUsernameInput.value = "";
-	if (createPasswordInput) createPasswordInput.value = "";
-	if (confirmPasswordInput) confirmPasswordInput.value = "";
-	ShowLoginView();
+	console.log("[AutoShake] Mock POST /upload-resume:", file.name);
+	// BACKEND TODO: POST file to /upload-resume as multipart/form-data
+
+	if (dropZone) {
+		dropZone.innerHTML = `<p class="upload-success">✓ ${file.name}</p>`;
+		dropZone.classList.add("upload-done");
+	}
+	if (resumeCheckItem) resumeCheckItem.classList.add("checked");
+	if (continueButton) continueButton.disabled = false;
 }
 
 function HandleLogout(): void {
@@ -379,48 +374,55 @@ function InitializePopup(): void {
 }
 
 if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chrome.storage !== "undefined" && typeof (globalThis as Record<string, unknown>).vi === "undefined") {
+	welcomeView = document.getElementById("welcomeView");
 	loginView = document.getElementById("loginView");
 	mainView = document.getElementById("mainView");
-	createAccountView = document.getElementById("createAccountView");
 
-	// Hide GraphQL section if not in debug mode
+	// Step 1: Welcome
+	document.getElementById("getStartedButton")?.addEventListener("click", () => ShowStep(2));
+
+	// Step 2: Auth tabs
+	document.getElementById("loginTab")?.addEventListener("click", () => SetAuthMode("login"));
+	document.getElementById("signupTab")?.addEventListener("click", () => SetAuthMode("signup"));
+	document.getElementById("authSubmitButton")?.addEventListener("click", HandleAuth);
+	(document.getElementById("authPasswordInput") as HTMLInputElement | null)
+		?.addEventListener("keydown", (e: KeyboardEvent) => { if (e.key === "Enter") HandleAuth(); });
+
+	// Step 2: Resume upload (click + drag-and-drop)
+	const fileInput = document.getElementById("fileInput") as HTMLInputElement | null;
+	fileInput?.addEventListener("change", () => {
+		if (fileInput.files?.[0]) HandleResumeUpload(fileInput.files[0]);
+	});
+
+	const dropZone = document.getElementById("dropZone");
+	dropZone?.addEventListener("dragover", (e: DragEvent) => {
+		e.preventDefault();
+		dropZone.classList.add("drop-zone-hover");
+	});
+	dropZone?.addEventListener("dragleave", () => dropZone.classList.remove("drop-zone-hover"));
+	dropZone?.addEventListener("drop", (e: DragEvent) => {
+		e.preventDefault();
+		dropZone.classList.remove("drop-zone-hover");
+		const file = e.dataTransfer?.files[0];
+		if (file) HandleResumeUpload(file);
+	});
+
+	document.getElementById("continueButton")?.addEventListener("click", () => ShowStep(3));
+
+	// GraphQL debug section
 	if (!DEBUG_GRAPHQL_VIEW) {
-		const graphqlHeader = document.querySelector(".graphql-section-header");
-		const graphqlContainer = document.getElementById("graphqlResponses");
-		if (graphqlHeader) graphqlHeader.classList.add("hidden");
-		if (graphqlContainer) graphqlContainer.classList.add("hidden");
+		document.querySelector(".graphql-section-header")?.classList.add("hidden");
+		document.getElementById("graphqlResponses")?.classList.add("hidden");
 	}
 
-	const loginButton = document.getElementById("loginButton");
-	loginButton?.addEventListener("click", HandleLogin);
-
-	const logoutButton = document.getElementById("logoutButton");
-	logoutButton?.addEventListener("click", HandleLogout);
-
-	const createAccountLink = document.getElementById("createAccountLink");
-	createAccountLink?.addEventListener("click", ShowCreateAccountView);
-
-	const createAccountButton = document.getElementById("createAccountButton");
-	createAccountButton?.addEventListener("click", HandleCreateAccount);
-
-	const backToLoginLink = document.getElementById("backToLoginLink");
-	backToLoginLink?.addEventListener("click", ShowLoginView);
-
-	const passwordInput = document.getElementById("passwordInput") as HTMLInputElement | null;
-	passwordInput?.addEventListener("keydown", (e: KeyboardEvent) => {
-		if (e.key === "Enter") HandleLogin();
-	});
-
-	const confirmPasswordInput = document.getElementById("confirmPasswordInput") as HTMLInputElement | null;
-	confirmPasswordInput?.addEventListener("keydown", (e: KeyboardEvent) => {
-		if (e.key === "Enter") HandleCreateAccount();
-	});
+	// Main view
+	document.getElementById("logoutButton")?.addEventListener("click", HandleLogout);
 
 	chrome.storage.local.get(["username"], (result: StorageResult) => {
 		if (result.username) {
 			ShowMainView();
 		} else {
-			ShowLoginView();
+			ShowStep(1);
 		}
 	});
 }

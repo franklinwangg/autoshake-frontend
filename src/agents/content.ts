@@ -1,4 +1,4 @@
-import type { JobEntry, StorageResult, JobData, AutoshakeGraphqlMessage, GraphqlResponse, StoreJobResponse } from './types';
+import type { JobEntry, StorageResult, JobData, AutoshakeGraphqlMessage, GraphqlResponse, StoreJobResponse } from '../types/types';
 
 const CURRENT_URL: string = window.location.href;
 const CURRENT_DOMAIN: string = window.location.hostname;

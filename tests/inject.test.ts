@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FindJobIdInObject, NormalizeId, IsObject } from '../inject';
+import { FindJobIdInObject, NormalizeId, IsObject } from '../src/agents/inject';
 
 const sampleJobGraphQL: { data: { job: { id: string; __typename: string } } } = {
   data: {

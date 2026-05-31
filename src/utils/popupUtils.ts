@@ -1,5 +1,5 @@
-import type { GraphqlResponse } from './types';
-import { IsObject } from './inject';
+import type { GraphqlResponse } from '../types/types';
+import { IsObject } from '../agents/inject';
 
 const MS_PER_MINUTE = 60000;
 const MINUTES_PER_HOUR = 60;
