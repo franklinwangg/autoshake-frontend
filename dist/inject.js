@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  // src/agents/inject.ts
+  // src/scripts/inject.ts
   var IsObject = (value) => value !== null && typeof value === "object";
   var NormalizeId = (value) => {
     if (typeof value === "string" && /^\d+$/.test(value)) return value;

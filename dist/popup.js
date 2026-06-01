@@ -1,6 +1,6 @@
 "use strict";
 (() => {
-  // src/agents/inject.ts
+  // src/scripts/inject.ts
   var IsObject = (value) => value !== null && typeof value === "object";
   var NormalizeId = (value) => {
     if (typeof value === "string" && /^\d+$/.test(value)) return value;
@@ -183,7 +183,39 @@
     return null;
   }
 
-  // src/agents/popup.ts
+  // src/config/constants.ts
+  var HANDSHAKE_BASE_URL = "https://app.joinhandshake.com";
+  var HANDSHAKE_JOBS_URL = "https://app.joinhandshake.com/stu/jobs";
+  var API_BASE_URL = "https://autoshake-production.up.railway.app";
+  var API_ENDPOINTS = {
+    // Auth
+    SIGNUP: "/auth/signup",
+    LOGIN: "/auth/login",
+    LOGOUT: "/auth/logout",
+    // User
+    GET_PROFILE: "/user/profile",
+    UPDATE_PROFILE: "/user/profile",
+    // Resume (base resume)
+    UPLOAD_RESUME: "/resume/upload",
+    GET_RESUME: "/resume",
+    DELETE_RESUME: "/resume",
+    // Jobs
+    SUBMIT_JOBS: "/jobs",
+    GET_JOBS: "/jobs",
+    GET_JOB: (jobId) => `/jobs/${jobId}`,
+    DELETE_JOB: (jobId) => `/jobs/${jobId}`,
+    // Tailored resume generation
+    GENERATE_RESUME: (jobId) => `/jobs/${jobId}/generate`,
+    GET_GENERATED_RESUME: (jobId) => `/jobs/${jobId}/resume`,
+    BATCH_GENERATE: "/generate/batch",
+    // Pipeline (internal/dev)
+    EXTRACT_SKILLS: "/extract-skills",
+    GENERATE_RESUME_PIPELINE: "/generate-resume",
+    GET_TEMPLATES: "/templates",
+    HEALTH: "/health"
+  };
+
+  // src/scripts/popup.ts
   var authMode = "login";
   var toggle = null;
   var stateText = null;
@@ -192,8 +224,9 @@
   var submitButton = null;
   var welcomeView = null;
   var loginView = null;
+  var launchView = null;
   var mainView = null;
-  var ALL_VIEWS = () => [welcomeView, loginView, mainView];
+  var ALL_VIEWS = () => [welcomeView, loginView, launchView, mainView];
   function ShowStep(step) {
     ALL_VIEWS().forEach((v) => {
       if (v) {
@@ -203,16 +236,18 @@
     });
     const views = {
       1: welcomeView,
-      2: loginView
+      2: loginView,
+      3: launchView
     };
     const target = views[step];
     if (target) {
       target.classList.remove("hidden");
       target.classList.add("active");
     }
-  }
-  function ShowLoginView() {
-    ShowStep(2);
+    if (typeof chrome !== "undefined" && chrome.storage) {
+      chrome.storage.local.set({ currentStep: step });
+    }
+    if (step === 3) RestoreLaunchState();
   }
   function ShowMainView() {
     ALL_VIEWS().forEach((v) => {
@@ -225,6 +260,7 @@
       mainView.classList.add("active");
       mainView.classList.remove("hidden");
     }
+    chrome.storage.local.set({ currentStep: 4 });
     chrome.storage.local.get(["username"], (result) => {
       const usernameDisplay = document.getElementById("usernameDisplay");
       if (usernameDisplay && result.username) {
@@ -251,10 +287,11 @@
     signupTab?.classList.toggle("auth-tab-active", mode === "signup");
     if (submitBtn) submitBtn.textContent = mode === "login" ? "Log In" : "Sign Up";
   }
-  function HandleAuth() {
+  async function HandleAuth() {
     const emailInput = document.getElementById("emailInput");
     const passwordInput = document.getElementById("authPasswordInput");
     const authError = document.getElementById("authError");
+    const submitBtn = document.getElementById("authSubmitButton");
     const email = emailInput?.value.trim() ?? "";
     const password = passwordInput?.value ?? "";
     if (authError) authError.textContent = "";
@@ -262,34 +299,91 @@
       if (authError) authError.textContent = "Please enter your email and password.";
       return;
     }
-    const endpoint = authMode === "login" ? "/login" : "/sign-up";
-    console.log(`[AutoShake] Mock POST ${endpoint}:`, email);
-    chrome.storage.local.set({ username: email }, () => {
-      if (emailInput) emailInput.value = "";
-      if (passwordInput) passwordInput.value = "";
-      ShowChecklistPanel();
-    });
-  }
-  function HandleResumeUpload(file) {
-    if (file.type !== "application/pdf") {
-      const authError = document.getElementById("authError");
-      if (authError) authError.textContent = "Please upload a PDF file.";
-      return;
+    if (submitBtn) submitBtn.disabled = true;
+    const endpoint = authMode === "login" ? API_ENDPOINTS.LOGIN : API_ENDPOINTS.SIGNUP;
+    try {
+      const res = await fetch(API_BASE_URL + endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (authError) authError.textContent = data.message || "Authentication failed.";
+        return;
+      }
+      const token = data.access_token ?? data.token ?? "";
+      chrome.storage.local.set({ username: email, authToken: token }, () => {
+        if (emailInput) emailInput.value = "";
+        if (passwordInput) passwordInput.value = "";
+        ShowChecklistPanel();
+      });
+    } catch {
+      if (authError) authError.textContent = "Network error. Please try again.";
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
+  }
+  async function HandleResumeUpload(file) {
+    const authError = document.getElementById("authError");
     const dropZone = document.getElementById("dropZone");
     const resumeCheckItem = document.getElementById("resumeCheckItem");
     const continueButton = document.getElementById("continueButton");
-    console.log("[AutoShake] Mock POST /upload-resume:", file.name);
-    if (dropZone) {
-      dropZone.innerHTML = `<p class="upload-success">\u2713 ${file.name}</p>`;
-      dropZone.classList.add("upload-done");
+    if (file.type !== "application/pdf") {
+      if (authError) authError.textContent = "Please upload a PDF file.";
+      return;
     }
-    if (resumeCheckItem) resumeCheckItem.classList.add("checked");
-    if (continueButton) continueButton.disabled = false;
+    if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Uploading...</p>`;
+    const { authToken } = await new Promise(
+      (resolve) => chrome.storage.local.get(["authToken"], (items) => resolve(items))
+    );
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(API_BASE_URL + API_ENDPOINTS.UPLOAD_RESUME, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: formData
+      });
+      if (!res.ok) {
+        if (authError) authError.textContent = "Upload failed. Please try again.";
+        if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Drag &amp; drop your resume PDF here</p><p class="drop-hint-sub">or <label for="fileInput" class="file-link">browse files</label></p>`;
+        return;
+      }
+      if (dropZone) {
+        dropZone.innerHTML = `<p class="upload-success">\u2713 ${file.name}</p>`;
+        dropZone.classList.add("upload-done");
+      }
+      if (resumeCheckItem) resumeCheckItem.classList.add("checked");
+      if (continueButton) continueButton.disabled = false;
+    } catch {
+      if (authError) authError.textContent = "Network error. Please try again.";
+      if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Drag &amp; drop your resume PDF here</p><p class="drop-hint-sub">or <label for="fileInput" class="file-link">browse files</label></p>`;
+    }
   }
   function HandleLogout() {
-    chrome.storage.local.set({ username: "" }, () => {
-      ShowLoginView();
+    chrome.storage.local.set({ username: "", currentStep: 1, launchStatus: void 0 }, () => {
+      ShowStep(1);
+    });
+  }
+  function UpdateLaunchStatus(status) {
+    const statusEl = document.getElementById("launchStatus");
+    const btn = document.getElementById("startApplyingButton");
+    if (!statusEl) return;
+    const messages = {
+      opening: "Opening Handshake...",
+      waiting_login: "Waiting for you to log in...",
+      detected: "Handshake detected! Loading..."
+    };
+    if (status && messages[status]) {
+      statusEl.textContent = messages[status];
+      statusEl.classList.remove("hidden");
+      if (btn) btn.disabled = true;
+    }
+  }
+  function RestoreLaunchState() {
+    chrome.storage.local.get(["launchStatus"], (result) => {
+      if (result.launchStatus) UpdateLaunchStatus(result.launchStatus);
     });
   }
   function InitializePopupDOMElements() {
@@ -313,29 +407,39 @@
       });
     });
   }
-  function SubmitJobList() {
-    chrome.storage.local.get("jobData", (result) => {
-      const jobData = result.jobData || {};
-      const jobs = Object.values(jobData).filter((job) => job.clicked);
-      if (jobs.length === 0) {
-        alert("No jobs to submit!");
+  async function SubmitJobList() {
+    const result = await new Promise(
+      (resolve) => chrome.storage.local.get(["authToken", "jobData"], (items) => resolve(items))
+    );
+    const jobData = result.jobData || {};
+    const jobs = Object.values(jobData).filter((job) => job.clicked);
+    if (jobs.length === 0) {
+      alert("No jobs to submit!");
+      return;
+    }
+    try {
+      const res = await fetch(API_BASE_URL + API_ENDPOINTS.SUBMIT_JOBS, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${result.authToken}`
+        },
+        body: JSON.stringify({ jobs })
+      });
+      if (!res.ok) {
+        alert("Failed to submit jobs. Please try again.");
         return;
       }
-      const payload = {
-        jobs,
-        submittedAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      console.log("Submitting job list:", payload);
       jobs.forEach((job) => {
-        if (jobData[job.jobId]) {
-          jobData[job.jobId].clicked = false;
-        }
+        if (jobData[job.jobId]) jobData[job.jobId].clicked = false;
       });
       chrome.storage.local.set({ jobData }, () => {
         DisplayJobs();
-        alert("Job list submitted!");
       });
-    });
+      alert("Job list submitted!");
+    } catch {
+      alert("Network error. Could not submit jobs.");
+    }
   }
   function UpdateToggleLabel(isOn) {
     if (stateText) {
@@ -387,7 +491,7 @@
           if (e.target.classList.contains("delete-button")) return;
           let fullUrl = job.href ?? "";
           if (!fullUrl.startsWith("http")) {
-            fullUrl = "https://app.joinhandshake.com" + (fullUrl.startsWith("/") ? "" : "/") + fullUrl;
+            fullUrl = HANDSHAKE_BASE_URL + (fullUrl.startsWith("/") ? "" : "/") + fullUrl;
           }
           chrome.tabs.create({ url: fullUrl });
         });
@@ -442,6 +546,7 @@
   if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chrome.storage !== "undefined" && typeof globalThis.vi === "undefined") {
     welcomeView = document.getElementById("welcomeView");
     loginView = document.getElementById("loginView");
+    launchView = document.getElementById("launchView");
     mainView = document.getElementById("mainView");
     document.getElementById("getStartedButton")?.addEventListener("click", () => ShowStep(2));
     document.getElementById("loginTab")?.addEventListener("click", () => SetAuthMode("login"));
@@ -467,14 +572,34 @@
       if (file) HandleResumeUpload(file);
     });
     document.getElementById("continueButton")?.addEventListener("click", () => ShowStep(3));
+    document.getElementById("startApplyingButton")?.addEventListener("click", () => {
+      UpdateLaunchStatus("opening");
+      chrome.tabs.create({ url: HANDSHAKE_JOBS_URL }, (tab) => {
+        if (tab.id == null) return;
+        chrome.runtime.sendMessage({ type: "watchHandshakeTab", tabId: tab.id });
+      });
+    });
+    chrome.storage.onChanged.addListener((changes) => {
+      if (changes.currentStep?.newValue === 4) {
+        ShowMainView();
+      }
+      if (changes.launchStatus) {
+        UpdateLaunchStatus(changes.launchStatus.newValue);
+      }
+    });
     if (true) {
       document.querySelector(".graphql-section-header")?.classList.add("hidden");
       document.getElementById("graphqlResponses")?.classList.add("hidden");
     }
     document.getElementById("logoutButton")?.addEventListener("click", HandleLogout);
-    chrome.storage.local.get(["username"], (result) => {
-      if (result.username) {
+    chrome.storage.local.get(["username", "currentStep"], (result) => {
+      const step = result.currentStep;
+      if (step === 4 || !step && result.username) {
         ShowMainView();
+      } else if (step === 3) {
+        ShowStep(3);
+      } else if (step === 2) {
+        ShowStep(2);
       } else {
         ShowStep(1);
       }

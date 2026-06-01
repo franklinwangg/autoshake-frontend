@@ -28,6 +28,9 @@ export interface StorageResult {
 	trackingEnabled?: boolean;
 	jobData?: JobData;
 	username?: string;
+	authToken?: string;
+	currentStep?: number;
+	launchStatus?: "opening" | "waiting_login" | "detected";
 }
 
 export interface StoreJobMessage {
@@ -44,4 +47,9 @@ export interface AutoshakeGraphqlMessage {
 	type: "AUTOSHAKE_GRAPHQL_RESPONSE";
 	jobId: string;
 	response: GraphqlResponse;
+}
+
+export interface WatchHandshakeTabMessage {
+	type: "watchHandshakeTab";
+	tabId: number;
 }

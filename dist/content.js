@@ -1,11 +1,13 @@
 "use strict";
 (() => {
-  // src/agents/content.ts
+  // src/config/constants.ts
+  var HANDSHAKE_DOMAIN = "handshake.com";
+
+  // src/scripts/content.ts
   var CURRENT_URL = window.location.href;
   var CURRENT_DOMAIN = window.location.hostname;
-  var TARGET_WEBSITE = "handshake.com";
-  if (CURRENT_DOMAIN.includes(TARGET_WEBSITE)) {
-    console.log("[AutoShake] You are on " + TARGET_WEBSITE + "!");
+  if (CURRENT_DOMAIN.includes(HANDSHAKE_DOMAIN)) {
+    console.log("[AutoShake] You are on " + HANDSHAKE_DOMAIN + "!");
     window.addEventListener("message", (event) => {
       if (event.data.type === "AUTOSHAKE_GRAPHQL_RESPONSE") {
         const jobId = event.data.jobId;
