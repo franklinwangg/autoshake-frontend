@@ -1,6 +1,27 @@
 import type { StoreJobMessage, StorageResult, JobData, StoreJobResponse, WatchHandshakeTabMessage } from '../types/types';
 import { IsLoginUrl, IsJobsPageUrl } from '../config/constants';
 
+const openPanels = new Set<number>();
+
+chrome.action.onClicked.addListener((tab) => {
+	if (!tab.id) return;
+	const tabId = tab.id;
+
+	if (openPanels.has(tabId)) {
+		chrome.sidePanel.setOptions({ tabId, enabled: false }, () => {
+			chrome.sidePanel.setOptions({ tabId, enabled: true });
+		});
+		openPanels.delete(tabId);
+	} else {
+		chrome.sidePanel.open({ tabId });
+		openPanels.add(tabId);
+	}
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+	openPanels.delete(tabId);
+});
+
 type IncomingMessage = StoreJobMessage | WatchHandshakeTabMessage;
 
 chrome.runtime.onMessage.addListener((message: IncomingMessage, _sender: chrome.runtime.MessageSender, sendResponse: (response?: StoreJobResponse | { success: boolean }) => void) => {

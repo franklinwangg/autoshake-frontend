@@ -12,7 +12,8 @@ autoshake-frontend/
 │   │   └── popup.ts
 │   ├── api/           # backend API calls (auth, resume upload, job generation)
 │   ├── config/        # constants, templates, and service configuration
-│   │   └── constants.ts   # URLs, API endpoints, and other shared constants — put new constants here
+│   │   ├── constants.ts   # URLs, API endpoints, and other shared constants — put new constants here
+│   │   └── styles.ts      # design tokens (colors, spacing, fonts, radius, transitions) — all global styles go here
 │   ├── types/         # shared TypeScript types
 │   └── utils/         # shared utility functions (popupUtils, etc.)
 ├── public/            # static assets
@@ -55,12 +56,98 @@ All authenticated endpoints require `Authorization: Bearer <token>` in the reque
 
 All endpoint constants live in `src/config/constants.ts` under `API_ENDPOINTS`. The base URL is `API_BASE_URL` in the same file. All `fetch` calls to the backend go in `src/api/` — never inline in scripts.
 
+### Request schemas
+
+**POST /auth/signup** and **POST /auth/login**
+```json
+{ "email": "user@example.com", "password": "yourpassword" }
+```
+```python
+# backend handler (raw JSON body, no Pydantic model)
+@app.post("/auth/signup")
+async def signup(request: Request):
+    body = await request.json()
+    # body["email"], body["password"]
+```
+
+**POST /resume/upload**
+```
+Header: Authorization: Bearer <access_token>
+Body:   multipart/form-data, field name "file", must be a .pdf
+```
+
+**POST /extract-skills**
+```json
+{ "job_description": "We are looking for a Python engineer..." }
+```
+
+**POST /generate-resume**
+```json
+{
+  "job_description": "We are looking for a Python engineer...",
+  "resume": {
+    "basics": {
+      "name": "Jane Doe",
+      "headline": "Software Engineer",
+      "email": "jane@example.com",
+      "summary": "Experienced engineer...",
+      "links": {
+        "linkedin": "https://linkedin.com/in/jane",
+        "github": "https://github.com/jane",
+        "website": "https://jane.dev"
+      }
+    },
+    "experience": [
+      {
+        "company": "Acme Corp",
+        "position": "Software Engineer",
+        "startDate": "2022-01",
+        "endDate": "Present",
+        "bullets": ["Built X", "Improved Y by 30%"]
+      }
+    ],
+    "education": [
+      {
+        "institution": "UC Berkeley",
+        "degree": "B.S.",
+        "field": "Computer Science",
+        "startDate": "2018-09",
+        "endDate": "2022-05",
+        "gpa": "3.8",
+        "honors": ["Dean's List"],
+        "coursework": ["Algorithms", "ML"]
+      }
+    ],
+    "projects": [
+      {
+        "name": "AutoShake",
+        "date": "2024",
+        "description": "Resume automation tool",
+        "technologies": ["Python", "FastAPI"],
+        "bullets": ["Built the pipeline", "Deployed on Railway"]
+      }
+    ],
+    "skills": [
+      { "category": "Languages", "items": ["Python", "TypeScript"] }
+    ]
+  }
+}
+```
+
+**POST /generate-resume-from-files** (server-side / dev only)
+```
+Query params: resume_path, job_path, output_path (optional)
+```
+
+**GET /health** and **GET /templates** — no body
+
 ---
 
 **Rules:**
 - All extension scripts live in `src/scripts/` — nothing else goes there
 - Backend calls go in `src/api/` — scripts never call `fetch` to the backend directly
 - All constants, templates, URLs, and service config live in `src/config/` — never hardcode URLs or credentials inline in scripts or api files
+- All global styles (colors, spacing, font sizes, border radii, transitions) must be defined as tokens in `src/config/styles.ts` — `styles.css` must reference them via CSS custom properties (`var(--*)`) and must never contain hardcoded color, spacing, or font values
 - Types shared across scripts go in `src/types/` — script-specific types can stay local
 - `dist/` is always committed so teammates can load the extension without building
 - **Never modify anything inside `scrape-and-parse/`** — it is a separate standalone project for prototyping the Handshake data pipeline

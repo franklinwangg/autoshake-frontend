@@ -5,6 +5,23 @@
   var IsJobsPageUrl = (url) => url.includes("joinhandshake.com") && (url.includes("/job-search") || url.includes("/stu/jobs"));
 
   // src/scripts/background.ts
+  var openPanels = /* @__PURE__ */ new Set();
+  chrome.action.onClicked.addListener((tab) => {
+    if (!tab.id) return;
+    const tabId = tab.id;
+    if (openPanels.has(tabId)) {
+      chrome.sidePanel.setOptions({ tabId, enabled: false }, () => {
+        chrome.sidePanel.setOptions({ tabId, enabled: true });
+      });
+      openPanels.delete(tabId);
+    } else {
+      chrome.sidePanel.open({ tabId });
+      openPanels.add(tabId);
+    }
+  });
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    openPanels.delete(tabId);
+  });
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message?.type) return false;
     if (message.type === "storeJob") {

@@ -2,6 +2,7 @@ import type { JobRecord, JobData, StorageResult, GraphqlResponse } from '../type
 import { GetRelativeTime, GetFieldFromObject, ExtractJobField } from '../utils/popupUtils';
 import { IsObject } from './inject';
 import { HANDSHAKE_BASE_URL, HANDSHAKE_JOBS_URL, API_BASE_URL, API_ENDPOINTS } from '../config/constants';
+import { injectCSSVariables } from '../config/styles';
 
 // Compile-time debug flag for GraphQL view
 declare const DEBUG_GRAPHQL_VIEW: boolean;
@@ -450,6 +451,8 @@ function InitializePopup(): void {
 }
 
 if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chrome.storage !== "undefined" && typeof (globalThis as Record<string, unknown>).vi === "undefined") {
+	injectCSSVariables();
+
 	welcomeView = document.getElementById("welcomeView");
 	loginView = document.getElementById("loginView");
 	launchView = document.getElementById("launchView");
