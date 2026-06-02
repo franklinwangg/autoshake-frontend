@@ -143,6 +143,8 @@ async function FetchAndExtractResume(authToken: string): Promise<void> {
 		if (!extractRes.ok) return;
 
 		const extractData = await extractRes.json() as { text?: string };
+		console.log("[AutoShake] FetchAndExtractResume — extracted text length:", extractData.text?.length ?? 0);
+		console.log("[AutoShake] FetchAndExtractResume — extracted text preview:", extractData.text?.slice(0, 200));
 		if (extractData.text) {
 			chrome.storage.local.set({ resumeText: extractData.text });
 		}
@@ -274,27 +276,44 @@ async function HandleDoneApplying(): Promise<void> {
 		chrome.storage.local.get(["authToken", "jobData", "resumeText"], items => resolve(items as StorageResult))
 	);
 
+	console.log("[AutoShake] HandleDoneApplying — authToken present:", !!result.authToken);
+	console.log("[AutoShake] HandleDoneApplying — resumeText length:", result.resumeText?.length ?? 0);
+	console.log("[AutoShake] HandleDoneApplying — resumeText preview:", result.resumeText?.slice(0, 200));
+
 	const jobData: JobData = result.jobData || {};
 	const jobs: JobRecord[] = Object.values(jobData).filter((job: JobRecord) => job.clicked);
+	console.log("[AutoShake] HandleDoneApplying — jobs to submit:", jobs.length);
 
 	await Promise.allSettled(
-		jobs.map(job => {
+		jobs.map(async job => {
 			const jobDescription =
 				ExtractJobField(job.graphqlResponses || [], ["job", "description"]) ||
 				ExtractJobField(job.graphqlResponses || [], ["job", "title"]) ||
 				"";
 
-			return fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
+			const payload = {
+				job_description: jobDescription,
+				resume: result.resumeText ?? "",
+			};
+
+			console.log(`[AutoShake] job ${job.jobId} — job_description length:`, jobDescription.length);
+			console.log(`[AutoShake] job ${job.jobId} — job_description preview:`, jobDescription.slice(0, 200));
+			console.log(`[AutoShake] job ${job.jobId} — full payload:`, JSON.stringify(payload, null, 2));
+
+			const res = await fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${result.authToken}`,
 				},
-				body: JSON.stringify({
-					job_description: jobDescription,
-					resume: result.resumeText ?? "",
-				}),
+				body: JSON.stringify(payload),
 			});
+
+			const responseText = await res.text();
+			console.log(`[AutoShake] job ${job.jobId} — response status:`, res.status);
+			console.log(`[AutoShake] job ${job.jobId} — response body:`, responseText);
+
+			return res;
 		})
 	);
 

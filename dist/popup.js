@@ -421,6 +421,8 @@ ${rules.join("\n")}
       });
       if (!extractRes.ok) return;
       const extractData = await extractRes.json();
+      console.log("[AutoShake] FetchAndExtractResume \u2014 extracted text length:", extractData.text?.length ?? 0);
+      console.log("[AutoShake] FetchAndExtractResume \u2014 extracted text preview:", extractData.text?.slice(0, 200));
       if (extractData.text) {
         chrome.storage.local.set({ resumeText: extractData.text });
       }
@@ -528,22 +530,34 @@ ${rules.join("\n")}
     const result = await new Promise(
       (resolve) => chrome.storage.local.get(["authToken", "jobData", "resumeText"], (items) => resolve(items))
     );
+    console.log("[AutoShake] HandleDoneApplying \u2014 authToken present:", !!result.authToken);
+    console.log("[AutoShake] HandleDoneApplying \u2014 resumeText length:", result.resumeText?.length ?? 0);
+    console.log("[AutoShake] HandleDoneApplying \u2014 resumeText preview:", result.resumeText?.slice(0, 200));
     const jobData = result.jobData || {};
     const jobs = Object.values(jobData).filter((job) => job.clicked);
+    console.log("[AutoShake] HandleDoneApplying \u2014 jobs to submit:", jobs.length);
     await Promise.allSettled(
-      jobs.map((job) => {
+      jobs.map(async (job) => {
         const jobDescription = ExtractJobField(job.graphqlResponses || [], ["job", "description"]) || ExtractJobField(job.graphqlResponses || [], ["job", "title"]) || "";
-        return fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
+        const payload = {
+          job_description: jobDescription,
+          resume: result.resumeText ?? ""
+        };
+        console.log(`[AutoShake] job ${job.jobId} \u2014 job_description length:`, jobDescription.length);
+        console.log(`[AutoShake] job ${job.jobId} \u2014 job_description preview:`, jobDescription.slice(0, 200));
+        console.log(`[AutoShake] job ${job.jobId} \u2014 full payload:`, JSON.stringify(payload, null, 2));
+        const res = await fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${result.authToken}`
           },
-          body: JSON.stringify({
-            job_description: jobDescription,
-            resume: result.resumeText ?? ""
-          })
+          body: JSON.stringify(payload)
         });
+        const responseText = await res.text();
+        console.log(`[AutoShake] job ${job.jobId} \u2014 response status:`, res.status);
+        console.log(`[AutoShake] job ${job.jobId} \u2014 response body:`, responseText);
+        return res;
       })
     );
     chrome.storage.local.set({ jobData: {} }, () => {
