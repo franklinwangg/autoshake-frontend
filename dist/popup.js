@@ -186,7 +186,7 @@
   // src/config/constants.ts
   var HANDSHAKE_BASE_URL = "https://app.joinhandshake.com";
   var HANDSHAKE_JOBS_URL = "https://app.joinhandshake.com/stu/jobs";
-  var API_BASE_URL = "https://autoshake-production.up.railway.app";
+  var API_BASE_URL = "https://localhost:8000";
   var API_ENDPOINTS = {
     // Auth
     SIGNUP: "/auth/signup",
@@ -420,12 +420,13 @@ ${rules.join("\n")}
     }
   }
   async function HandleResumeUpload(file) {
-    const authError = document.getElementById("authError");
+    const uploadError = document.getElementById("uploadError");
     const dropZone = document.getElementById("dropZone");
     const resumeCheckItem = document.getElementById("resumeCheckItem");
     const continueButton = document.getElementById("continueButton");
+    if (uploadError) uploadError.textContent = "";
     if (file.type !== "application/pdf") {
-      if (authError) authError.textContent = "Please upload a PDF file.";
+      if (uploadError) uploadError.textContent = "Please upload a PDF file.";
       return;
     }
     if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Uploading...</p>`;
@@ -441,7 +442,7 @@ ${rules.join("\n")}
         body: formData
       });
       if (!res.ok) {
-        if (authError) authError.textContent = "Upload failed. Please try again.";
+        if (uploadError) uploadError.textContent = "Upload failed. Please try again.";
         if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Drag &amp; drop your resume PDF here</p><p class="drop-hint-sub">or <label for="fileInput" class="file-link">browse files</label></p>`;
         return;
       }
@@ -452,7 +453,7 @@ ${rules.join("\n")}
       if (resumeCheckItem) resumeCheckItem.classList.add("checked");
       if (continueButton) continueButton.disabled = false;
     } catch {
-      if (authError) authError.textContent = "Network error. Please try again.";
+      if (uploadError) uploadError.textContent = "Network error. Please try again.";
       if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Drag &amp; drop your resume PDF here</p><p class="drop-hint-sub">or <label for="fileInput" class="file-link">browse files</label></p>`;
     }
   }
