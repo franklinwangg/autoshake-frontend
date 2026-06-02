@@ -186,7 +186,7 @@
   // src/config/constants.ts
   var HANDSHAKE_BASE_URL = "https://app.joinhandshake.com";
   var HANDSHAKE_JOBS_URL = "https://app.joinhandshake.com/stu/jobs";
-  var API_BASE_URL = "https://localhost:8000";
+  var API_BASE_URL = "https://autoshake-production.up.railway.app";
   var API_ENDPOINTS = {
     // Auth
     SIGNUP: "/auth/signup",

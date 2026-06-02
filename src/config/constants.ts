@@ -9,8 +9,8 @@ export const IsJobsPageUrl = (url: string): boolean =>
 	url.includes("joinhandshake.com") &&
 	(url.includes("/job-search") || url.includes("/stu/jobs"));
 
-// export const API_BASE_URL = "https://autoshake-production.up.railway.app";
-export const API_BASE_URL = "https://localhost:8000";
+export const API_BASE_URL = "https://autoshake-production.up.railway.app";
+// export const API_BASE_URL = "https://localhost:8000";
 
 export const API_ENDPOINTS = {
 	// Auth
