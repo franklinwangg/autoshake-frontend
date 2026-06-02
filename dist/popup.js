@@ -127,27 +127,6 @@
   })();
 
   // src/utils/popupUtils.ts
-  var MS_PER_MINUTE = 6e4;
-  var MINUTES_PER_HOUR = 60;
-  var HOURS_PER_DAY = 24;
-  function GetRelativeTime(isoString) {
-    const now = /* @__PURE__ */ new Date();
-    const past = new Date(isoString);
-    const diffMs = now.getTime() - past.getTime();
-    const diffMins = Math.floor(diffMs / MS_PER_MINUTE);
-    const diffHours = Math.floor(diffMins / MINUTES_PER_HOUR);
-    const diffDays = Math.floor(diffHours / HOURS_PER_DAY);
-    if (diffMins < 1) {
-      return "just now";
-    }
-    if (diffMins < MINUTES_PER_HOUR) {
-      return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
-    }
-    if (diffHours < HOURS_PER_DAY) {
-      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-    }
-    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-  }
   function GetFieldFromObject(obj, path) {
     let current = obj;
     for (const segment of path) {
@@ -184,7 +163,6 @@
   }
 
   // src/config/constants.ts
-  var HANDSHAKE_BASE_URL = "https://app.joinhandshake.com";
   var HANDSHAKE_JOBS_URL = "https://app.joinhandshake.com/stu/jobs";
   var API_BASE_URL = "https://autoshake-production.up.railway.app";
   var API_ENDPOINTS = {
@@ -312,16 +290,12 @@ ${rules.join("\n")}
 
   // src/scripts/popup.ts
   var authMode = "login";
-  var toggle = null;
-  var stateText = null;
-  var jobList = null;
-  var graphqlToggleButton = null;
-  var submitButton = null;
   var welcomeView = null;
   var loginView = null;
   var launchView = null;
   var mainView = null;
-  var ALL_VIEWS = () => [welcomeView, loginView, launchView, mainView];
+  var processingView = null;
+  var ALL_VIEWS = () => [welcomeView, loginView, launchView, mainView, processingView];
   function ShowStep(step) {
     ALL_VIEWS().forEach((v) => {
       if (v) {
@@ -344,7 +318,7 @@ ${rules.join("\n")}
     }
     if (step === 3) RestoreLaunchState();
   }
-  function ShowMainView() {
+  function ShowTrackingView() {
     ALL_VIEWS().forEach((v) => {
       if (v) {
         v.classList.add("hidden");
@@ -356,14 +330,21 @@ ${rules.join("\n")}
       mainView.classList.remove("hidden");
     }
     chrome.storage.local.set({ currentStep: 4 });
-    chrome.storage.local.get(["username"], (result) => {
-      const usernameDisplay = document.getElementById("usernameDisplay");
-      if (usernameDisplay && result.username) {
-        usernameDisplay.textContent = `Logged in as: ${result.username}`;
+    DisplayTrackedJobs();
+    UpdateJobCounter();
+  }
+  function ShowProcessingView() {
+    ALL_VIEWS().forEach((v) => {
+      if (v) {
+        v.classList.add("hidden");
+        v.classList.remove("active");
       }
     });
-    InitializePopupDOMElements();
-    InitializePopup();
+    if (processingView) {
+      processingView.classList.add("active");
+      processingView.classList.remove("hidden");
+    }
+    chrome.storage.local.set({ currentStep: 5 });
   }
   function ShowChecklistPanel() {
     const authPanel = document.getElementById("authPanel");
@@ -482,162 +463,61 @@ ${rules.join("\n")}
       if (result.launchStatus) UpdateLaunchStatus(result.launchStatus);
     });
   }
-  function InitializePopupDOMElements() {
-    toggle = document.getElementById("stateToggle");
-    stateText = document.getElementById("trackingLabel");
-    jobList = document.getElementById("jobList");
-    if (false) {
-      graphqlToggleButton = document.getElementById("toggleGraphQL");
-      graphqlStats = document.getElementById("graphqlStats");
-    }
-    submitButton = document.getElementById("submitButton");
-  }
-  function DeleteJob(jobId) {
+  function UpdateJobCounter() {
     chrome.storage.local.get("jobData", (result) => {
       const jobData = result.jobData || {};
-      if (jobData[jobId]) {
-        jobData[jobId].clicked = false;
-      }
-      chrome.storage.local.set({ jobData }, () => {
-        DisplayJobs();
-      });
+      const count = Object.values(jobData).filter((job) => job.clicked).length;
+      const el = document.getElementById("jobCount");
+      if (el) el.textContent = String(count);
     });
   }
-  async function SubmitJobList() {
+  function DisplayTrackedJobs() {
+    const listEl = document.getElementById("trackedJobList");
+    if (!listEl) return;
+    chrome.storage.local.get("jobData", (result) => {
+      const jobData = result.jobData || {};
+      const jobs = Object.values(jobData).filter((job) => job.clicked);
+      if (jobs.length === 0) {
+        listEl.innerHTML = `<p class="tracked-job-empty">No jobs yet \u2014 browse Handshake and click a job to add it.</p>`;
+        return;
+      }
+      listEl.innerHTML = "";
+      for (const job of jobs) {
+        const company = ExtractJobField(job.graphqlResponses || [], ["job", "employer", "name"]) || "Unknown Company";
+        const title = ExtractJobField(job.graphqlResponses || [], ["job", "title"]) || "Unknown Role";
+        const item = document.createElement("div");
+        item.className = "tracked-job-item";
+        item.innerHTML = `
+				<div class="tracked-job-company">${company}</div>
+				<div class="tracked-job-role">${title}</div>
+			`;
+        listEl.appendChild(item);
+      }
+    });
+  }
+  async function HandleDoneApplying() {
+    const btn = document.getElementById("doneApplyingButton");
+    if (btn) btn.disabled = true;
     const result = await new Promise(
       (resolve) => chrome.storage.local.get(["authToken", "jobData"], (items) => resolve(items))
     );
     const jobData = result.jobData || {};
     const jobs = Object.values(jobData).filter((job) => job.clicked);
-    if (jobs.length === 0) {
-      alert("No jobs to submit!");
-      return;
-    }
-    try {
-      const res = await fetch(API_BASE_URL + API_ENDPOINTS.SUBMIT_JOBS, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${result.authToken}`
-        },
-        body: JSON.stringify({ jobs })
-      });
-      if (!res.ok) {
-        alert("Failed to submit jobs. Please try again.");
-        return;
-      }
-      jobs.forEach((job) => {
-        if (jobData[job.jobId]) jobData[job.jobId].clicked = false;
-      });
-      chrome.storage.local.set({ jobData }, () => {
-        DisplayJobs();
-      });
-      alert("Job list submitted!");
-    } catch {
-      alert("Network error. Could not submit jobs.");
-    }
-  }
-  function UpdateToggleLabel(isOn) {
-    if (stateText) {
-      stateText.textContent = `Job Tracking: ${isOn ? "Enabled" : "Disabled"}
-`;
-    }
-  }
-  function UpdateSubmitButtonState() {
-    if (!submitButton) return;
-    chrome.storage.local.get("jobData", (result) => {
-      const jobData = result.jobData || {};
-      const jobs = Object.values(jobData).filter((job) => job.clicked);
-      if (jobs.length > 0) {
-        submitButton.disabled = false;
-        submitButton.textContent = "Submit Job List";
-      } else {
-        submitButton.disabled = true;
-        submitButton.textContent = "Need jobs to submit";
-      }
+    await Promise.allSettled(
+      jobs.map(
+        (job) => fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${result.authToken}`
+          },
+          body: JSON.stringify({ job })
+        })
+      )
+    );
+    chrome.storage.local.set({ jobData: {}, currentStep: 5 }, () => {
+      ShowProcessingView();
     });
-  }
-  function DisplayJobs() {
-    if (!jobList) return;
-    const listEl = jobList;
-    chrome.storage.local.get("jobData", (result) => {
-      const jobData = result.jobData || {};
-      const jobs = Object.values(jobData).filter((job) => job.clicked);
-      if (jobs.length === 0) {
-        listEl.innerHTML = "<p class='no-data-text'>No jobs in your list. Click a handshake job to add one!</p>";
-        UpdateSubmitButtonState();
-        return;
-      }
-      listEl.innerHTML = `<h2>Job List (${jobs.length})</h2>`;
-      const container = document.createElement("div");
-      container.className = "jobs-container";
-      for (const job of jobs) {
-        const jobItem = document.createElement("div");
-        jobItem.className = "job-item";
-        const jobTitle = ExtractJobField(job.graphqlResponses || [], ["job", "title"]) || "Unknown Job";
-        const jobEmployer = ExtractJobField(job.graphqlResponses || [], ["job", "employer", "name"]);
-        const relativeTime = job.clickTimestamp ? GetRelativeTime(job.clickTimestamp) : "unknown time";
-        jobItem.innerHTML = `
-				<div class="job-title">${jobTitle}</div>
-				${jobEmployer ? `<div class="job-employer">${jobEmployer}</div>` : ""}
-				<div class="job-meta">${relativeTime}</div>
-				<button class="delete-button" data-job-id="${job.jobId}">\xD7</button>
-			`;
-        jobItem.addEventListener("click", (e) => {
-          if (e.target.classList.contains("delete-button")) return;
-          let fullUrl = job.href ?? "";
-          if (!fullUrl.startsWith("http")) {
-            fullUrl = HANDSHAKE_BASE_URL + (fullUrl.startsWith("/") ? "" : "/") + fullUrl;
-          }
-          chrome.tabs.create({ url: fullUrl });
-        });
-        const deleteButton = jobItem.querySelector(".delete-button");
-        deleteButton?.addEventListener("click", (e) => {
-          e.stopPropagation();
-          DeleteJob(job.jobId);
-        });
-        container.appendChild(jobItem);
-      }
-      ;
-      listEl.appendChild(container);
-      UpdateSubmitButtonState();
-    });
-  }
-  function InitializePopup() {
-    if (!toggle || !stateText || !jobList) return;
-    const toggleEl = toggle;
-    const graphqlBtn = graphqlToggleButton;
-    chrome.storage.local.get(["trackingEnabled"], (result) => {
-      const enabled = result.trackingEnabled !== false;
-      toggleEl.checked = enabled;
-      UpdateToggleLabel(enabled);
-      toggleEl.addEventListener("change", () => {
-        const isOn = toggleEl.checked;
-        chrome.storage.local.set({ trackingEnabled: isOn }, () => {
-          UpdateToggleLabel(isOn);
-        });
-      });
-    });
-    DisplayJobs();
-    if (false) {
-      DisplayGraphQLResponses();
-    }
-    UpdateSubmitButtonState();
-    chrome.storage.local.get(null, (items) => {
-      const storageSize = JSON.stringify(items).length;
-      const storageSizeMB = (storageSize / (1024 * 1024)).toFixed(2);
-      console.log(`Chrome Storage Size: ${storageSizeMB} MB (${storageSize} bytes)`);
-    });
-    if (false) {
-      graphqlBtn.addEventListener("click", () => {
-        const container = document.getElementById("graphqlResponses");
-        if (!container) return;
-        const isHidden = container.classList.contains("hidden");
-        container.classList.toggle("hidden", !isHidden);
-        graphqlBtn.textContent = isHidden ? "Hide" : "Show";
-      });
-    }
-    submitButton?.addEventListener("click", SubmitJobList);
   }
   if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chrome.storage !== "undefined" && typeof globalThis.vi === "undefined") {
     injectCSSVariables();
@@ -645,6 +525,7 @@ ${rules.join("\n")}
     loginView = document.getElementById("loginView");
     launchView = document.getElementById("launchView");
     mainView = document.getElementById("mainView");
+    processingView = document.getElementById("processingView");
     document.getElementById("getStartedButton")?.addEventListener("click", () => ShowStep(2));
     document.getElementById("loginTab")?.addEventListener("click", () => SetAuthMode("login"));
     document.getElementById("signupTab")?.addEventListener("click", () => SetAuthMode("signup"));
@@ -676,23 +557,26 @@ ${rules.join("\n")}
         chrome.runtime.sendMessage({ type: "watchHandshakeTab", tabId: tab.id });
       });
     });
+    document.getElementById("logoutButton")?.addEventListener("click", HandleLogout);
+    document.getElementById("doneApplyingButton")?.addEventListener("click", HandleDoneApplying);
     chrome.storage.onChanged.addListener((changes) => {
       if (changes.currentStep?.newValue === 4) {
-        ShowMainView();
+        ShowTrackingView();
       }
       if (changes.launchStatus) {
         UpdateLaunchStatus(changes.launchStatus.newValue);
       }
+      if (changes.jobData) {
+        UpdateJobCounter();
+        DisplayTrackedJobs();
+      }
     });
-    if (true) {
-      document.querySelector(".graphql-section-header")?.classList.add("hidden");
-      document.getElementById("graphqlResponses")?.classList.add("hidden");
-    }
-    document.getElementById("logoutButton")?.addEventListener("click", HandleLogout);
     chrome.storage.local.get(["username", "currentStep"], (result) => {
       const step = result.currentStep;
-      if (step === 4 || !step && result.username) {
-        ShowMainView();
+      if (step === 5) {
+        ShowProcessingView();
+      } else if (step === 4 || !step && result.username) {
+        ShowTrackingView();
       } else if (step === 3) {
         ShowStep(3);
       } else if (step === 2) {
@@ -701,5 +585,8 @@ ${rules.join("\n")}
         ShowStep(1);
       }
     });
+    if (false) {
+      console.log("[AutoShake] GraphQL debug view enabled");
+    }
   }
 })();

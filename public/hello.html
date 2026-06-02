@@ -62,28 +62,25 @@
       </div>
     </div>
     <div id="mainView">
-      <div class="main-header">
-        <h1>AutoShake</h1>
-        <div class="header-actions">
-          <button id="logoutButton">Log Out</button>
-          <div id="usernameDisplay"></div>
-        </div>
+      <div class="tracking-header">
+        <h1 class="tracking-title">AutoShake</h1>
+        <button id="logoutButton" class="logout-btn">Log Out</button>
       </div>
-      <div class="toggle-container">
-        <div id="trackingLabel" class="state-text">Job Tracking: Disabled</div>
-        <label class="switch">
-          <input id="stateToggle" type="checkbox" />
-          <span class="slider"></span>
-        </label>
+      <div class="tracking-status-row">
+        <span class="pulse-dot"></span>
+        <span class="tracking-status-text">Tracking Active...</span>
       </div>
-      <div class="graphql-section-header">
-        <h3>GraphQL Responses</h3>
-        <button id="toggleGraphQL">Hide</button>
+      <div class="capture-counter">Jobs Captured: <span id="jobCount">0</span></div>
+      <div id="trackedJobList" class="tracked-job-list"></div>
+      <div class="done-container">
+        <button id="doneApplyingButton" class="done-button">Done Applying</button>
       </div>
-      <div id="graphqlResponses"></div>
-      <div id="jobList"></div>
-      <div class="submit-container">
-        <button id="submitButton" disabled>Need jobs to submit</button>
+    </div>
+    <div id="processingView">
+      <div class="processing-card">
+        <div class="processing-icon">⚡</div>
+        <h2 class="processing-title">Tailoring your resumes...</h2>
+        <p class="processing-message">We're generating a tailored resume for each job. This may take a few minutes.</p>
       </div>
     </div>
     <script src="../dist/popup.js"></script>

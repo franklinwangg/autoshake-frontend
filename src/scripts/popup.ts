@@ -1,30 +1,21 @@
-import type { JobRecord, JobData, StorageResult, GraphqlResponse } from '../types/types';
-import { GetRelativeTime, GetFieldFromObject, ExtractJobField } from '../utils/popupUtils';
+import type { JobRecord, JobData, StorageResult } from '../types/types';
+import { ExtractJobField } from '../utils/popupUtils';
 import { IsObject } from './inject';
-import { HANDSHAKE_BASE_URL, HANDSHAKE_JOBS_URL, API_BASE_URL, API_ENDPOINTS } from '../config/constants';
+import { HANDSHAKE_JOBS_URL, API_BASE_URL, API_ENDPOINTS } from '../config/constants';
 import { injectCSSVariables } from '../config/styles';
 
 // Compile-time debug flag for GraphQL view
 declare const DEBUG_GRAPHQL_VIEW: boolean;
 
-interface ParsedGraphQLData {
-	[key: string]: unknown;
-}
-
 let authMode: "login" | "signup" = "login";
 
-let toggle: HTMLInputElement | null = null;
-let stateText: HTMLElement | null = null;
-let jobList: HTMLElement | null = null;
-let graphqlToggleButton: HTMLElement | null = null;
-let graphqlStats: HTMLElement | null = null;
-let submitButton: HTMLButtonElement | null = null;
 let welcomeView: HTMLElement | null = null;
 let loginView: HTMLElement | null = null;
 let launchView: HTMLElement | null = null;
 let mainView: HTMLElement | null = null;
+let processingView: HTMLElement | null = null;
 
-const ALL_VIEWS = () => [welcomeView, loginView, launchView, mainView];
+const ALL_VIEWS = () => [welcomeView, loginView, launchView, mainView, processingView];
 
 function ShowStep(step: number): void {
 	ALL_VIEWS().forEach(v => {
@@ -47,22 +38,22 @@ function ShowLoginView(): void {
 	ShowStep(2);
 }
 
-function ShowMainView(): void {
+function ShowTrackingView(): void {
 	ALL_VIEWS().forEach(v => {
 		if (v) { v.classList.add("hidden"); v.classList.remove("active"); }
 	});
 	if (mainView) { mainView.classList.add("active"); mainView.classList.remove("hidden"); }
 	chrome.storage.local.set({ currentStep: 4 });
+	DisplayTrackedJobs();
+	UpdateJobCounter();
+}
 
-	chrome.storage.local.get(["username"], (result: StorageResult) => {
-		const usernameDisplay = document.getElementById("usernameDisplay");
-		if (usernameDisplay && result.username) {
-			usernameDisplay.textContent = `Logged in as: ${result.username}`;
-		}
+function ShowProcessingView(): void {
+	ALL_VIEWS().forEach(v => {
+		if (v) { v.classList.add("hidden"); v.classList.remove("active"); }
 	});
-
-	InitializePopupDOMElements();
-	InitializePopup();
+	if (processingView) { processingView.classList.add("active"); processingView.classList.remove("hidden"); }
+	chrome.storage.local.set({ currentStep: 5 });
 }
 
 function ShowChecklistPanel(): void {
@@ -206,88 +197,48 @@ function RestoreLaunchState(): void {
 	});
 }
 
-function InitializePopupDOMElements() {
-	toggle = document.getElementById("stateToggle") as HTMLInputElement | null;
-	stateText = document.getElementById("trackingLabel");
-	jobList = document.getElementById("jobList");
-	if (DEBUG_GRAPHQL_VIEW) {
-		graphqlToggleButton = document.getElementById("toggleGraphQL");
-		graphqlStats = document.getElementById("graphqlStats");
-	}
-	submitButton = document.getElementById("submitButton") as HTMLButtonElement | null;
-}
-
-function DisplayGraphQLResponses(): void {
-  const container: HTMLElement | null = document.getElementById("graphqlResponses");
-  if (!container) return;
-
-  chrome.storage.local.get("jobData", (result: StorageResult) => {
-    const jobData: JobData = result.jobData || {};
-    const responses: GraphqlResponse[] = Object.values(jobData)
-      .flatMap((job: JobRecord) => Array.isArray(job.graphqlResponses) ? job.graphqlResponses : []);
-
-    if (responses.length === 0) {
-      container.innerHTML = "<p class='no-data-text'>No responses yet</p>";
-      return;
-    }
-
-    container.innerHTML = "";
-
-    responses.slice().reverse().forEach((r: GraphqlResponse, i: number) => {
-      const parsed: unknown = JSON.parse(r.data);
-      const parsedData: ParsedGraphQLData | null = IsObject(parsed) ? parsed as ParsedGraphQLData : null;
-      const inner: unknown = parsedData && "data" in parsedData && IsObject(parsedData.data) ? parsedData.data : null;
-      const operationName: string = inner
-        ? Object.keys(inner).join(", ") || "unknown"
-        : parsedData
-          ? Object.keys(parsedData)[0] ?? "unknown"
-          : "unknown";
-
-      const item: HTMLDivElement = document.createElement("div");
-      item.className = "graphql-item";
-      item.innerHTML = `
-        <div class="graphql-header" data-index="${i}">
-          <span class="graphql-op">${operationName}</span>
-          <span class="graphql-time">${GetRelativeTime(r.timestamp)}</span>
-          <span class="graphql-toggle">▶</span>
-        </div>
-        <pre class="graphql-body" id="body-${i}">${JSON.stringify(parsed, null, 2)}</pre>
-      `;
-
-      const headerElement: Element | null = item.querySelector(".graphql-header");
-      headerElement?.addEventListener("click", () => {
-        const body: HTMLElement | null = document.getElementById(`body-${i}`);
-        const toggleIcon: Element | null = item.querySelector(".graphql-toggle");
-        const isHidden: boolean = body?.style.display === "none";
-        if (body) body.style.display = isHidden ? "block" : "none";
-        if (toggleIcon) toggleIcon.textContent = isHidden ? "▼" : "▶";
-      });
-
-      container.appendChild(item);
-    });
-  });
-}
-
-function DeleteJob(jobId: string): void {
+function UpdateJobCounter(): void {
 	chrome.storage.local.get("jobData", (result: StorageResult) => {
 		const jobData: JobData = result.jobData || {};
-		if (jobData[jobId]) {
-			jobData[jobId].clicked = false;
+		const count = Object.values(jobData).filter((job: JobRecord) => job.clicked).length;
+		const el = document.getElementById("jobCount");
+		if (el) el.textContent = String(count);
+	});
+}
+
+function DisplayTrackedJobs(): void {
+	const listEl = document.getElementById("trackedJobList");
+	if (!listEl) return;
+
+	chrome.storage.local.get("jobData", (result: StorageResult) => {
+		const jobData: JobData = result.jobData || {};
+		const jobs: JobRecord[] = Object.values(jobData).filter((job: JobRecord) => job.clicked);
+
+		if (jobs.length === 0) {
+			listEl.innerHTML = `<p class="tracked-job-empty">No jobs yet — browse Handshake and click a job to add it.</p>`;
+			return;
 		}
-		
-		chrome.storage.local.set({ jobData }, () => {
-			DisplayJobs();
-		});
+
+		listEl.innerHTML = "";
+		for (const job of jobs) {
+			const company = ExtractJobField(job.graphqlResponses || [], ["job", "employer", "name"]) || "Unknown Company";
+			const title = ExtractJobField(job.graphqlResponses || [], ["job", "title"]) || "Unknown Role";
+
+			const item = document.createElement("div");
+			item.className = "tracked-job-item";
+			item.innerHTML = `
+				<div class="tracked-job-company">${company}</div>
+				<div class="tracked-job-role">${title}</div>
+			`;
+			listEl.appendChild(item);
+		}
 	});
 }
 
-function ClearAllJobs(): void {
-	chrome.storage.local.set({ jobData: {} }, () => {
-		DisplayJobs();
-	});
-}
+async function HandleDoneApplying(): Promise<void> {
+	const btn = document.getElementById("doneApplyingButton") as HTMLButtonElement | null;
+	if (btn) btn.disabled = true;
 
-async function SubmitJobList(): Promise<void> {
 	const result = await new Promise<StorageResult>(resolve =>
 		chrome.storage.local.get(["authToken", "jobData"], items => resolve(items as StorageResult))
 	);
@@ -295,162 +246,26 @@ async function SubmitJobList(): Promise<void> {
 	const jobData: JobData = result.jobData || {};
 	const jobs: JobRecord[] = Object.values(jobData).filter((job: JobRecord) => job.clicked);
 
-	if (jobs.length === 0) {
-		alert("No jobs to submit!");
-		return;
-	}
+	await Promise.allSettled(
+		jobs.map(job =>
+			fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${result.authToken}`,
+				},
+				body: JSON.stringify({ job }),
+			})
+		)
+	);
 
-	try {
-		const res = await fetch(API_BASE_URL + API_ENDPOINTS.SUBMIT_JOBS, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${result.authToken}`,
-			},
-			body: JSON.stringify({ jobs }),
-		});
-
-		if (!res.ok) {
-			alert("Failed to submit jobs. Please try again.");
-			return;
-		}
-
-		// Only clear clicked state on successful submission to preserve GraphQL data
-		jobs.forEach((job: JobRecord) => {
-			if (jobData[job.jobId]) jobData[job.jobId].clicked = false;
-		});
-
-		chrome.storage.local.set({ jobData }, () => { DisplayJobs(); });
-		alert("Job list submitted!");
-	} catch {
-		alert("Network error. Could not submit jobs.");
-	}
-}
-
-function UpdateToggleLabel(isOn: boolean): void {
-	if (stateText) {
-		stateText.textContent = `Job Tracking: ${isOn ? "Enabled" : "Disabled"}\n`;
-	}
-}
-
-function UpdateSubmitButtonState(): void {
-	if (!submitButton) return;
-	
-	chrome.storage.local.get("jobData", (result: StorageResult) => {
-		const jobData: JobData = result.jobData || {};
-		const jobs: JobRecord[] = Object.values(jobData).filter((job: JobRecord) => job.clicked);
-		
-		if (jobs.length > 0) {
-			submitButton!.disabled = false;
-			submitButton!.textContent = "Submit Job List";
-		} else {
-			submitButton!.disabled = true;
-			submitButton!.textContent = "Need jobs to submit";
-		}
+	chrome.storage.local.set({ jobData: {}, currentStep: 5 }, () => {
+		ShowProcessingView();
 	});
 }
 
-function DisplayJobs(): void {
-	if (!jobList) return;
-	const listEl = jobList;
-	
-	chrome.storage.local.get("jobData", (result: StorageResult) => {
-		const jobData: JobData = result.jobData || {};
-		const jobs: JobRecord[] = Object.values(jobData).filter((job: JobRecord) => job.clicked);
-		
-		if (jobs.length === 0) {
-			listEl.innerHTML = "<p class='no-data-text'>No jobs in your list. Click a handshake job to add one!</p>";
-			UpdateSubmitButtonState();
-			return;
-		}
-		
-		listEl.innerHTML = `<h2>Job List (${jobs.length})</h2>`;
-		const container: HTMLDivElement = document.createElement("div");
-		container.className = "jobs-container";
-		
-		for (const job of jobs) {
-			const jobItem: HTMLDivElement = document.createElement("div");
-			jobItem.className = "job-item";
-			
-			const jobTitle: string = ExtractJobField(job.graphqlResponses || [], ["job", "title"]) || "Unknown Job";
-			const jobEmployer: string | null = ExtractJobField(job.graphqlResponses || [], ["job", "employer", "name"]);
-			const relativeTime: string = job.clickTimestamp ? GetRelativeTime(job.clickTimestamp) : "unknown time";
-			jobItem.innerHTML = `
-				<div class="job-title">${jobTitle}</div>
-				${jobEmployer ? `<div class="job-employer">${jobEmployer}</div>` : ""}
-				<div class="job-meta">${relativeTime}</div>
-				<button class="delete-button" data-job-id="${job.jobId}">×</button>
-			`;
-			
-			jobItem.addEventListener("click", (e: MouseEvent) => {
-				if ((e.target as HTMLElement).classList.contains("delete-button")) return;
-				
-				let fullUrl: string = job.href ?? "";
-				if (!fullUrl.startsWith("http")) {
-					fullUrl = HANDSHAKE_BASE_URL + (fullUrl.startsWith("/") ? "" : "/") + fullUrl;
-				}
-				chrome.tabs.create({ url: fullUrl });
-			});
-			
-			const deleteButton: HTMLButtonElement | null = jobItem.querySelector(".delete-button");
-			deleteButton?.addEventListener("click", (e: MouseEvent) => {
-				e.stopPropagation();
-				DeleteJob(job.jobId);
-			});
-			
-			container.appendChild(jobItem);
-		};
-		
-		listEl.appendChild(container);
-		UpdateSubmitButtonState();
-	});
-}
-
-function InitializePopup(): void {
-	if (!toggle || !stateText || !jobList) return;
-
-	const toggleEl: HTMLInputElement = toggle;
-	const graphqlBtn: HTMLElement = graphqlToggleButton!;
-
-	chrome.storage.local.get(["trackingEnabled"], (result: StorageResult) => {
-		const enabled: boolean = result.trackingEnabled !== false;
-		toggleEl.checked = enabled;
-		UpdateToggleLabel(enabled);
-
-		toggleEl.addEventListener("change", () => {
-			const isOn: boolean = toggleEl.checked;
-			chrome.storage.local.set({ trackingEnabled: isOn }, () => {
-				UpdateToggleLabel(isOn);
-			});
-		});
-	});
-
-	DisplayJobs();
-	if (DEBUG_GRAPHQL_VIEW) {
-		DisplayGraphQLResponses();
-	}
-	UpdateSubmitButtonState();
-
-	// Log storage size
-	chrome.storage.local.get(null, (items: Record<string, unknown>) => {
-		const storageSize = JSON.stringify(items).length;
-		const storageSizeMB = (storageSize / (1024 * 1024)).toFixed(2);
-		console.log(`Chrome Storage Size: ${storageSizeMB} MB (${storageSize} bytes)`);
-	});
-
-	if (DEBUG_GRAPHQL_VIEW) {
-		graphqlBtn.addEventListener("click", () => {
-			const container: HTMLElement | null = document.getElementById("graphqlResponses");
-			if (!container) return;
-
-			const isHidden: boolean = container.classList.contains("hidden");
-			container.classList.toggle("hidden", !isHidden);
-			graphqlBtn.textContent = isHidden ? "Hide" : "Show";
-		});
-	}
-
-	submitButton?.addEventListener("click", SubmitJobList);
-}
+// Keep IsObject import valid
+void IsObject;
 
 if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chrome.storage !== "undefined" && typeof (globalThis as Record<string, unknown>).vi === "undefined") {
 	injectCSSVariables();
@@ -459,6 +274,7 @@ if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chr
 	loginView = document.getElementById("loginView");
 	launchView = document.getElementById("launchView");
 	mainView = document.getElementById("mainView");
+	processingView = document.getElementById("processingView");
 
 	// Step 1: Welcome
 	document.getElementById("getStartedButton")?.addEventListener("click", () => ShowStep(2));
@@ -500,30 +316,32 @@ if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chr
 		});
 	});
 
-	// Listen for background script advancing to step 4
+	// Step 4: Tracking dashboard
+	document.getElementById("logoutButton")?.addEventListener("click", HandleLogout);
+	document.getElementById("doneApplyingButton")?.addEventListener("click", HandleDoneApplying);
+
+	// Listen for background script or storage changes advancing steps
 	chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }) => {
 		if (changes.currentStep?.newValue === 4) {
-			ShowMainView();
+			ShowTrackingView();
 		}
 		if (changes.launchStatus) {
 			UpdateLaunchStatus(changes.launchStatus.newValue as string);
 		}
+		// Live-update counter and list as jobs are captured
+		if (changes.jobData) {
+			UpdateJobCounter();
+			DisplayTrackedJobs();
+		}
 	});
-
-	// GraphQL debug section
-	if (!DEBUG_GRAPHQL_VIEW) {
-		document.querySelector(".graphql-section-header")?.classList.add("hidden");
-		document.getElementById("graphqlResponses")?.classList.add("hidden");
-	}
-
-	// Main view
-	document.getElementById("logoutButton")?.addEventListener("click", HandleLogout);
 
 	// Restore the right step on popup open
 	chrome.storage.local.get(["username", "currentStep"], (result: StorageResult) => {
 		const step = result.currentStep;
-		if (step === 4 || (!step && result.username)) {
-			ShowMainView();
+		if (step === 5) {
+			ShowProcessingView();
+		} else if (step === 4 || (!step && result.username)) {
+			ShowTrackingView();
 		} else if (step === 3) {
 			ShowStep(3);
 		} else if (step === 2) {
@@ -532,4 +350,9 @@ if (typeof window !== "undefined" && typeof chrome !== "undefined" && typeof chr
 			ShowStep(1);
 		}
 	});
+
+	// GraphQL debug section (no-op if DEBUG_GRAPHQL_VIEW is false)
+	if (DEBUG_GRAPHQL_VIEW) {
+		console.log("[AutoShake] GraphQL debug view enabled");
+	}
 }

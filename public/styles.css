@@ -74,9 +74,6 @@ body {
 	display: flex !important;
 }
 
-#mainView.active {
-	display: block !important;
-}
 
 .toggle-container {
 	display: inline-flex;
@@ -442,30 +439,31 @@ input:checked + .slider:before {
 	display: flex !important;
 }
 
+/* ── Step 4: Tracking Dashboard ── */
+
 #mainView {
 	display: none;
+	flex-direction: column;
+	align-items: stretch;
 }
 
-.main-header {
-	position: relative;
-	margin-bottom: var(--space-16);
+#mainView.active {
+	display: flex !important;
 }
 
-.main-header h1 {
-	text-align: center;
+.tracking-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--space-20);
+}
+
+.tracking-title {
+	font-size: var(--text-3xl);
 	margin: 0;
 }
 
-.header-actions {
-	position: absolute;
-	top: 0;
-	right: 0;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-}
-
-#logoutButton {
+.logout-btn {
 	padding: var(--space-6) var(--space-12);
 	background-color: var(--color-logout);
 	color: var(--color-white);
@@ -475,42 +473,153 @@ input:checked + .slider:before {
 	font-size: var(--text-base);
 }
 
-#usernameDisplay {
-	color: var(--color-text-muted);
-	font-size: var(--text-base);
-	margin-top: var(--space-6);
-}
-
-.graphql-section-header {
+.tracking-status-row {
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
+	justify-content: center;
+	gap: var(--space-8);
+	margin-bottom: var(--space-12);
 }
 
-.submit-container {
-	margin-top: var(--space-20);
-	padding-top: var(--space-20);
+@keyframes pulse {
+	0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.6); }
+	50%       { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
+}
+
+.pulse-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background-color: var(--color-success);
+	animation: pulse 1.5s ease-in-out infinite;
+	flex-shrink: 0;
+}
+
+.tracking-status-text {
+	font-size: var(--text-md);
+	font-weight: 600;
+	color: var(--color-success);
+}
+
+.capture-counter {
+	font-size: var(--text-2xl);
+	font-weight: 700;
+	color: var(--color-brand-dark);
+	text-align: center;
+	margin-bottom: var(--space-16);
+}
+
+.tracked-job-list {
+	flex: 1;
+	max-height: 280px;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-8);
+	margin-bottom: var(--space-20);
+}
+
+.tracked-job-item {
+	background: var(--color-bg-subtle);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	padding: var(--space-12) var(--space-16);
+	text-align: left;
+}
+
+.tracked-job-company {
+	font-weight: 600;
+	color: var(--color-text-primary);
+	font-size: var(--text-base);
+}
+
+.tracked-job-role {
+	color: var(--color-text-muted);
+	font-size: var(--text-sm);
+	margin-top: var(--space-4);
+}
+
+.tracked-job-empty {
+	color: var(--color-text-placeholder);
+	text-align: center;
+	padding: var(--space-24) 0;
+	font-size: var(--text-base);
+}
+
+.done-container {
+	padding-top: var(--space-16);
 	border-top: 1px solid var(--color-border);
 }
 
-#submitButton {
+.done-button {
 	width: 100%;
-	padding: var(--space-10);
+	padding: var(--space-14) var(--space-20);
+	font-size: var(--text-lg);
+	font-weight: 700;
+	background-color: var(--color-brand-dark);
+	color: var(--color-white);
 	border: none;
-	border-radius: var(--radius-sm);
-	font-size: var(--text-md);
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	transition: background-color var(--transition-fast), transform 0.1s;
 }
 
-#submitButton:disabled {
+.done-button:hover {
+	background-color: var(--color-primary);
+	transform: translateY(-1px);
+}
+
+.done-button:disabled {
 	background-color: var(--color-border-disabled);
 	color: var(--color-text-muted);
 	cursor: not-allowed;
+	transform: none;
 }
 
-#submitButton:not(:disabled) {
-	background-color: var(--color-success);
-	color: var(--color-white);
-	cursor: pointer;
+/* ── Step 5: Processing ── */
+
+#processingView {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	min-height: 300px;
+}
+
+#processingView.active {
+	display: flex !important;
+}
+
+.processing-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-16);
+	padding: var(--space-40) var(--space-32);
+	background: linear-gradient(135deg, var(--color-bg-gradient-start) 0%, var(--color-bg-gradient-end) 100%);
+	border: 1px solid var(--color-border-subtle);
+	border-radius: var(--radius-2xl);
+	width: 100%;
+}
+
+.processing-icon {
+	font-size: var(--text-display);
+	line-height: 1;
+	animation: pulse 1.5s ease-in-out infinite;
+}
+
+.processing-title {
+	font-size: var(--text-2xl);
+	font-weight: 700;
+	color: var(--color-brand-dark);
+	margin: 0;
+}
+
+.processing-message {
+	font-size: var(--text-md);
+	color: var(--color-text-secondary);
+	margin: 0;
+	max-width: 320px;
+	line-height: 1.5;
 }
 
 .no-data-text {
