@@ -111,12 +111,43 @@ async function HandleAuth(): Promise<void> {
 		chrome.storage.local.set({ username: email, authToken: token }, () => {
 			if (emailInput) emailInput.value = "";
 			if (passwordInput) passwordInput.value = "";
+			FetchAndExtractResume(token);
 			ShowChecklistPanel();
 		});
 	} catch {
 		if (authError) authError.textContent = "Network error. Please try again.";
 	} finally {
 		if (submitBtn) submitBtn.disabled = false;
+	}
+}
+
+async function FetchAndExtractResume(authToken: string): Promise<void> {
+	try {
+		const resumeRes = await fetch(API_BASE_URL + API_ENDPOINTS.GET_RESUME, {
+			headers: { Authorization: `Bearer ${authToken}` },
+		});
+		if (!resumeRes.ok) return;
+
+		const resumeData = await resumeRes.json() as { resumes?: Array<{ url: string }> };
+		const url = resumeData.resumes?.[0]?.url;
+		if (!url) return;
+
+		const extractRes = await fetch(API_BASE_URL + API_ENDPOINTS.EXTRACT_RESUME_TEXT, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${authToken}`,
+			},
+			body: JSON.stringify({ url }),
+		});
+		if (!extractRes.ok) return;
+
+		const extractData = await extractRes.json() as { text?: string };
+		if (extractData.text) {
+			chrome.storage.local.set({ resumeText: extractData.text });
+		}
+	} catch {
+		// fire-and-forget, silently fail
 	}
 }
 
@@ -240,26 +271,34 @@ async function HandleDoneApplying(): Promise<void> {
 	if (btn) btn.disabled = true;
 
 	const result = await new Promise<StorageResult>(resolve =>
-		chrome.storage.local.get(["authToken", "jobData"], items => resolve(items as StorageResult))
+		chrome.storage.local.get(["authToken", "jobData", "resumeText"], items => resolve(items as StorageResult))
 	);
 
 	const jobData: JobData = result.jobData || {};
 	const jobs: JobRecord[] = Object.values(jobData).filter((job: JobRecord) => job.clicked);
 
 	await Promise.allSettled(
-		jobs.map(job =>
-			fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
+		jobs.map(job => {
+			const jobDescription =
+				ExtractJobField(job.graphqlResponses || [], ["job", "description"]) ||
+				ExtractJobField(job.graphqlResponses || [], ["job", "title"]) ||
+				"";
+
+			return fetch(API_BASE_URL + API_ENDPOINTS.GENERATE_RESUME_PIPELINE, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${result.authToken}`,
 				},
-				body: JSON.stringify({ job }),
-			})
-		)
+				body: JSON.stringify({
+					job_description: jobDescription,
+					resume: result.resumeText ?? "",
+				}),
+			});
+		})
 	);
 
-	chrome.storage.local.set({ jobData: {}, currentStep: 5 }, () => {
+	chrome.storage.local.set({ jobData: {} }, () => {
 		ShowProcessingView();
 	});
 }

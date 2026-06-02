@@ -23,9 +23,10 @@ export const API_ENDPOINTS = {
 	UPDATE_PROFILE: "/user/profile",
 
 	// Resume (base resume)
-	UPLOAD_RESUME:  "/resume/upload",
-	GET_RESUME:     "/resume",
-	DELETE_RESUME:  "/resume",
+	UPLOAD_RESUME:       "/resume/upload",
+	GET_RESUME:          "/resume",
+	EXTRACT_RESUME_TEXT: "/resume/extract-text",
+	DELETE_RESUME:       "/resume",
 
 	// Jobs
 	SUBMIT_JOBS: "/jobs",

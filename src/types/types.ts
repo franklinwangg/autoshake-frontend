@@ -31,6 +31,7 @@ export interface StorageResult {
 	authToken?: string;
 	currentStep?: number;
 	launchStatus?: "opening" | "waiting_login" | "detected";
+	resumeText?: string;
 }
 
 export interface StoreJobMessage {
