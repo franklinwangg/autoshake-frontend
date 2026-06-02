@@ -130,13 +130,15 @@ async function HandleAuth(): Promise<void> {
 }
 
 async function HandleResumeUpload(file: File): Promise<void> {
-	const authError = document.getElementById("authError");
+	const uploadError = document.getElementById("uploadError");
 	const dropZone = document.getElementById("dropZone");
 	const resumeCheckItem = document.getElementById("resumeCheckItem");
 	const continueButton = document.getElementById("continueButton") as HTMLButtonElement | null;
 
+	if (uploadError) uploadError.textContent = "";
+
 	if (file.type !== "application/pdf") {
-		if (authError) authError.textContent = "Please upload a PDF file.";
+		if (uploadError) uploadError.textContent = "Please upload a PDF file.";
 		return;
 	}
 
@@ -157,7 +159,7 @@ async function HandleResumeUpload(file: File): Promise<void> {
 		});
 
 		if (!res.ok) {
-			if (authError) authError.textContent = "Upload failed. Please try again.";
+			if (uploadError) uploadError.textContent = "Upload failed. Please try again.";
 			if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Drag &amp; drop your resume PDF here</p><p class="drop-hint-sub">or <label for="fileInput" class="file-link">browse files</label></p>`;
 			return;
 		}
@@ -169,7 +171,7 @@ async function HandleResumeUpload(file: File): Promise<void> {
 		if (resumeCheckItem) resumeCheckItem.classList.add("checked");
 		if (continueButton) continueButton.disabled = false;
 	} catch {
-		if (authError) authError.textContent = "Network error. Please try again.";
+		if (uploadError) uploadError.textContent = "Network error. Please try again.";
 		if (dropZone) dropZone.innerHTML = `<p class="drop-hint">Drag &amp; drop your resume PDF here</p><p class="drop-hint-sub">or <label for="fileInput" class="file-link">browse files</label></p>`;
 	}
 }
