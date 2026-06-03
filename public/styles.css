@@ -576,50 +576,193 @@ input:checked + .slider:before {
 	transform: none;
 }
 
-/* ── Step 5: Processing ── */
+/* ── Step 5: Review & Download Carousel ── */
 
-#processingView {
+#reviewView {
 	display: none;
-	align-items: center;
-	justify-content: center;
-	min-height: 300px;
+	flex-direction: column;
+	gap: var(--space-16);
 }
 
-#processingView.active {
+#reviewView.active {
 	display: flex !important;
 }
 
-.processing-card {
+.review-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.review-title {
+	font-size: var(--text-3xl);
+	margin: 0;
+}
+
+.carousel-counter {
+	font-size: var(--text-base);
+	color: var(--color-text-muted);
+}
+
+.carousel-wrapper {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+}
+
+.carousel-nav {
+	flex-shrink: 0;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	border: 1px solid var(--color-border);
+	background: var(--color-white);
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--color-text-primary);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background var(--transition-faster), border-color var(--transition-faster);
+}
+
+.carousel-nav:hover:not(:disabled) {
+	background: var(--color-bg-gradient-end);
+	border-color: var(--color-primary);
+}
+
+.carousel-nav:disabled {
+	opacity: 0.3;
+	cursor: not-allowed;
+}
+
+.resume-card {
+	flex: 1;
 	display: flex;
 	flex-direction: column;
-	align-items: center;
-	gap: var(--space-16);
-	padding: var(--space-40) var(--space-32);
+	gap: var(--space-12);
 	background: linear-gradient(135deg, var(--color-bg-gradient-start) 0%, var(--color-bg-gradient-end) 100%);
 	border: 1px solid var(--color-border-subtle);
 	border-radius: var(--radius-2xl);
-	width: 100%;
+	padding: var(--space-24) var(--space-20);
+	min-height: 240px;
 }
 
-.processing-icon {
-	font-size: var(--text-display);
-	line-height: 1;
-	animation: pulse 1.5s ease-in-out infinite;
-}
-
-.processing-title {
-	font-size: var(--text-2xl);
+.card-company {
+	font-size: var(--text-lg);
 	font-weight: 700;
 	color: var(--color-brand-dark);
-	margin: 0;
 }
 
-.processing-message {
+.card-title {
 	font-size: var(--text-md);
 	color: var(--color-text-secondary);
-	margin: 0;
-	max-width: 320px;
-	line-height: 1.5;
+	margin-top: calc(-1 * var(--space-8));
+}
+
+.card-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: var(--space-4) var(--space-10);
+	border-radius: var(--radius-pill);
+	font-size: var(--text-sm);
+	font-weight: 600;
+	width: fit-content;
+}
+
+.badge-success {
+	background: var(--color-bg-success);
+	color: var(--color-success);
+	border: 1px solid var(--color-success);
+}
+
+.badge-error {
+	background: #fff0f0;
+	color: var(--color-error);
+	border: 1px solid var(--color-error);
+}
+
+.card-job-link {
+	font-size: var(--text-sm);
+	color: var(--color-primary);
+	text-decoration: none;
+	margin-top: var(--space-4);
+}
+
+.card-job-link:hover {
+	text-decoration: underline;
+}
+
+.download-button {
+	margin-top: auto;
+	width: 100%;
+	padding: var(--space-12) var(--space-20);
+	font-size: var(--text-md);
+	font-weight: 700;
+	background-color: var(--color-primary);
+	color: var(--color-white);
+	border: none;
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	transition: background-color var(--transition-fast), transform 0.1s;
+}
+
+.download-button:hover {
+	background-color: var(--color-primary-dark);
+	transform: translateY(-1px);
+}
+
+.carousel-dots {
+	display: flex;
+	justify-content: center;
+	gap: var(--space-6);
+}
+
+.dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--color-border-disabled);
+	transition: background var(--transition-fast);
+}
+
+.dot-active {
+	background: var(--color-primary);
+}
+
+.review-footer {
+	display: flex;
+	gap: var(--space-8);
+	padding-top: var(--space-8);
+	border-top: 1px solid var(--color-border);
+}
+
+.secondary-button {
+	flex: 1;
+	padding: var(--space-10) var(--space-12);
+	font-size: var(--text-base);
+	font-weight: 600;
+	background: var(--color-white);
+	color: var(--color-brand-dark);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	transition: background var(--transition-faster), border-color var(--transition-faster);
+}
+
+.secondary-button:hover {
+	background: var(--color-bg-gradient-end);
+	border-color: var(--color-primary);
+}
+
+.card-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--color-text-placeholder);
+	font-size: var(--text-base);
+	height: 100%;
 }
 
 .no-data-text {

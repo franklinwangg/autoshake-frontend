@@ -76,11 +76,20 @@
         <button id="doneApplyingButton" class="done-button">Done Applying</button>
       </div>
     </div>
-    <div id="processingView">
-      <div class="processing-card">
-        <div class="processing-icon">⚡</div>
-        <h2 class="processing-title">Tailoring your resumes...</h2>
-        <p class="processing-message">We're generating a tailored resume for each job. This may take a few minutes.</p>
+    <div id="reviewView">
+      <div class="review-header">
+        <h1 class="review-title">AutoShake</h1>
+        <div id="carouselCounter" class="carousel-counter"></div>
+      </div>
+      <div class="carousel-wrapper">
+        <button id="carouselPrev" class="carousel-nav" aria-label="Previous">&#8249;</button>
+        <div id="resumeCard" class="resume-card"></div>
+        <button id="carouselNext" class="carousel-nav" aria-label="Next">&#8250;</button>
+      </div>
+      <div id="carouselDots" class="carousel-dots"></div>
+      <div class="review-footer">
+        <button id="applyMoreButton" class="secondary-button">Apply for More Jobs</button>
+        <button id="homeButton" class="secondary-button">Back to Home</button>
       </div>
     </div>
     <script src="../dist/popup.js"></script>

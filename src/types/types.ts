@@ -24,6 +24,15 @@ export interface JobData {
 	[jobId: string]: JobRecord;
 }
 
+export interface ResumeResult {
+	jobId: string;
+	company: string;
+	title: string;
+	href?: string;
+	pdfBase64?: string;
+	success: boolean;
+}
+
 export interface StorageResult {
 	trackingEnabled?: boolean;
 	jobData?: JobData;
@@ -33,6 +42,7 @@ export interface StorageResult {
 	launchStatus?: "opening" | "waiting_login" | "detected";
 	resumeText?: string;
 	resumeJson?: Record<string, unknown>;
+	resumeResults?: ResumeResult[];
 }
 
 export interface StoreJobMessage {
