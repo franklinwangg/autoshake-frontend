@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
 	UPLOAD_RESUME:       "/resume/upload",
 	GET_RESUME:          "/resume",
 	EXTRACT_RESUME_TEXT: "/resume/extract-text",
+	PARSE_RESUME:        "/resume/parse-resume",
 	DELETE_RESUME:       "/resume",
 
 	// Jobs

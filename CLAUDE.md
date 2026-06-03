@@ -42,6 +42,7 @@ All authenticated endpoints require `Authorization: Bearer <token>` in the reque
 | Resume | POST | `/resume/upload` | Upload master PDF (multipart/form-data) |
 | Resume | GET | `/resume` | Get uploaded resume |
 | Resume | POST | `/resume/extract-text` | Extract plain text from a resume PDF by URL |
+| Resume | POST | `/resume/parse-resume` | Parse plain text into structured resume JSON |
 | Resume | DELETE | `/resume` | Remove resume |
 | Jobs | POST | `/jobs` | Submit scraped job batch from extension |
 | Jobs | GET | `/jobs` | List all submitted jobs |
@@ -103,6 +104,53 @@ All endpoint constants live in `src/config/constants.ts` under `API_ENDPOINTS`. 
 { "url": "https://cdnkpvmbuzqlkswpmeps.supabase.co/storage/v1/object/public/resumes/..." }
 // Out
 { "text": "John Doe\njohn@example.com\n..." }
+```
+
+**POST /resume/parse-resume** — header: `Authorization: Bearer <access_token>`
+```json
+// In
+{ "text": "Jane Doe\njane@example.com\n..." }
+// Out
+{
+  "basics": {
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "headline": "Software Engineer",
+    "phone": "555-1234",
+    "location": { "city": "San Francisco", "state": "CA" },
+    "links": { "linkedin": "...", "github": "...", "website": "..." },
+    "summary": "..."
+  },
+  "education": [{
+    "institution": "MIT",
+    "degree": "B.S.",
+    "field": "Computer Science",
+    "startDate": "2020-09",
+    "endDate": "2024-05",
+    "gpa": "3.9",
+    "honors": ["Dean's List"],
+    "coursework": ["Algorithms"]
+  }],
+  "experience": [{
+    "company": "Acme Corp",
+    "position": "SWE Intern",
+    "startDate": "2023-06",
+    "endDate": "2023-08",
+    "location": "Remote",
+    "bullets": ["Built X"]
+  }],
+  "projects": [{
+    "name": "AutoShake",
+    "bullets": ["Did Z"],
+    "date": "2024-01",
+    "description": "...",
+    "technologies": ["Python"]
+  }],
+  "skills": [{
+    "category": "Languages",
+    "items": ["Python", "Go"]
+  }]
+}
 ```
 
 **GET /health**

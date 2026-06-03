@@ -32,6 +32,7 @@ export interface StorageResult {
 	currentStep?: number;
 	launchStatus?: "opening" | "waiting_login" | "detected";
 	resumeText?: string;
+	resumeJson?: Record<string, unknown>;
 }
 
 export interface StoreJobMessage {

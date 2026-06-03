@@ -145,9 +145,23 @@ async function FetchAndExtractResume(authToken: string): Promise<void> {
 		const extractData = await extractRes.json() as { text?: string };
 		console.log("[AutoShake] FetchAndExtractResume — extracted text length:", extractData.text?.length ?? 0);
 		console.log("[AutoShake] FetchAndExtractResume — extracted text preview:", extractData.text?.slice(0, 200));
-		if (extractData.text) {
-			chrome.storage.local.set({ resumeText: extractData.text });
-		}
+		if (!extractData.text) return;
+
+		chrome.storage.local.set({ resumeText: extractData.text });
+
+		const parseRes = await fetch(API_BASE_URL + API_ENDPOINTS.PARSE_RESUME, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${authToken}`,
+			},
+			body: JSON.stringify({ text: extractData.text }),
+		});
+		if (!parseRes.ok) return;
+
+		const resumeJson = await parseRes.json() as Record<string, unknown>;
+		console.log("[AutoShake] FetchAndExtractResume — parsed resume:", JSON.stringify(resumeJson, null, 2));
+		chrome.storage.local.set({ resumeJson });
 	} catch {
 		// fire-and-forget, silently fail
 	}
@@ -273,12 +287,11 @@ async function HandleDoneApplying(): Promise<void> {
 	if (btn) btn.disabled = true;
 
 	const result = await new Promise<StorageResult>(resolve =>
-		chrome.storage.local.get(["authToken", "jobData", "resumeText"], items => resolve(items as StorageResult))
+		chrome.storage.local.get(["authToken", "jobData", "resumeJson"], items => resolve(items as StorageResult))
 	);
 
 	console.log("[AutoShake] HandleDoneApplying — authToken present:", !!result.authToken);
-	console.log("[AutoShake] HandleDoneApplying — resumeText length:", result.resumeText?.length ?? 0);
-	console.log("[AutoShake] HandleDoneApplying — resumeText preview:", result.resumeText?.slice(0, 200));
+	console.log("[AutoShake] HandleDoneApplying — resumeJson:", JSON.stringify(result.resumeJson, null, 2));
 
 	const jobData: JobData = result.jobData || {};
 	const jobs: JobRecord[] = Object.values(jobData).filter((job: JobRecord) => job.clicked);
@@ -293,7 +306,7 @@ async function HandleDoneApplying(): Promise<void> {
 
 			const payload = {
 				job_description: jobDescription,
-				resume: result.resumeText ?? "",
+				resume: result.resumeJson ?? {},
 			};
 
 			console.log(`[AutoShake] job ${job.jobId} — job_description length:`, jobDescription.length);

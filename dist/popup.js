@@ -177,6 +177,7 @@
     UPLOAD_RESUME: "/resume/upload",
     GET_RESUME: "/resume",
     EXTRACT_RESUME_TEXT: "/resume/extract-text",
+    PARSE_RESUME: "/resume/parse-resume",
     DELETE_RESUME: "/resume",
     // Jobs
     SUBMIT_JOBS: "/jobs",
@@ -423,9 +424,20 @@ ${rules.join("\n")}
       const extractData = await extractRes.json();
       console.log("[AutoShake] FetchAndExtractResume \u2014 extracted text length:", extractData.text?.length ?? 0);
       console.log("[AutoShake] FetchAndExtractResume \u2014 extracted text preview:", extractData.text?.slice(0, 200));
-      if (extractData.text) {
-        chrome.storage.local.set({ resumeText: extractData.text });
-      }
+      if (!extractData.text) return;
+      chrome.storage.local.set({ resumeText: extractData.text });
+      const parseRes = await fetch(API_BASE_URL + API_ENDPOINTS.PARSE_RESUME, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ text: extractData.text })
+      });
+      if (!parseRes.ok) return;
+      const resumeJson = await parseRes.json();
+      console.log("[AutoShake] FetchAndExtractResume \u2014 parsed resume:", JSON.stringify(resumeJson, null, 2));
+      chrome.storage.local.set({ resumeJson });
     } catch {
     }
   }
@@ -528,11 +540,10 @@ ${rules.join("\n")}
     const btn = document.getElementById("doneApplyingButton");
     if (btn) btn.disabled = true;
     const result = await new Promise(
-      (resolve) => chrome.storage.local.get(["authToken", "jobData", "resumeText"], (items) => resolve(items))
+      (resolve) => chrome.storage.local.get(["authToken", "jobData", "resumeJson"], (items) => resolve(items))
     );
     console.log("[AutoShake] HandleDoneApplying \u2014 authToken present:", !!result.authToken);
-    console.log("[AutoShake] HandleDoneApplying \u2014 resumeText length:", result.resumeText?.length ?? 0);
-    console.log("[AutoShake] HandleDoneApplying \u2014 resumeText preview:", result.resumeText?.slice(0, 200));
+    console.log("[AutoShake] HandleDoneApplying \u2014 resumeJson:", JSON.stringify(result.resumeJson, null, 2));
     const jobData = result.jobData || {};
     const jobs = Object.values(jobData).filter((job) => job.clicked);
     console.log("[AutoShake] HandleDoneApplying \u2014 jobs to submit:", jobs.length);
@@ -541,7 +552,7 @@ ${rules.join("\n")}
         const jobDescription = ExtractJobField(job.graphqlResponses || [], ["job", "description"]) || ExtractJobField(job.graphqlResponses || [], ["job", "title"]) || "";
         const payload = {
           job_description: jobDescription,
-          resume: result.resumeText ?? ""
+          resume: result.resumeJson ?? {}
         };
         console.log(`[AutoShake] job ${job.jobId} \u2014 job_description length:`, jobDescription.length);
         console.log(`[AutoShake] job ${job.jobId} \u2014 job_description preview:`, jobDescription.slice(0, 200));
