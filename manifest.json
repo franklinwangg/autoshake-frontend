@@ -4,7 +4,7 @@
   "version": "1.0",
   "manifest_version": 3,
   "action": {
-    "default_icon": "public/images/temp_logo.png"
+    "default_icon": "public/images/autoshake_logo_no_border_gimp.png"
   },
   "side_panel": {
     "default_path": "public/hello.html"
