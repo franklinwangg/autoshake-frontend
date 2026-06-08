@@ -1,6 +1,5 @@
 {
   "devDependencies": {
-    "@supabase/supabase-js": "^2.106.2",
     "@types/chrome": "^0.0.268",
     "esbuild": "^0.28.0",
     "jsdom": "^29.1.1",
@@ -8,9 +7,9 @@
     "vitest": "^1.0.0"
   },
   "scripts": {
-    "build": "node build.js",
-    "build:debug": "node build.js --debug",
-    "watch": "node build.js --debug --watch",
+    "build": "esbuild scripts/content.ts scripts/popup/popup.ts scripts/background.ts scripts/inject.ts --bundle --outdir=dist --platform=browser --define:DEBUG_GRAPHQL_VIEW=false",
+    "build:debug": "esbuild scripts/content.ts scripts/popup/popup.ts scripts/background.ts scripts/inject.ts --bundle --outdir=dist --platform=browser --define:DEBUG_GRAPHQL_VIEW=true",
+    "watch": "esbuild scripts/content.ts scripts/popup/popup.ts scripts/background.ts scripts/inject.ts --bundle --outdir=dist --platform=browser --watch --define:DEBUG_GRAPHQL_VIEW=true",
     "test": "vitest",
     "test:run": "vitest run"
   }

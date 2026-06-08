@@ -1,0 +1,88 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div id="authView" class="hidden">
+      <h1 class="login-title">Auto<span class="accent">Shake</span></h1>
+      <div class="auth-tabs">
+        <button id="loginTab" class="auth-tab active-tab">Log In</button>
+        <button id="signupTab" class="auth-tab">Sign Up</button>
+      </div>
+      <div class="auth-card">
+        <div id="loginPanel">
+          <div class="login-form">
+            <input id="emailInput" type="email" placeholder="Email" class="login-input" />
+            <input id="passwordInput" type="password" placeholder="Password" class="login-input" />
+            <div id="loginError" class="login-error"></div>
+            <button id="loginButton" class="login-button">Log In</button>
+          </div>
+        </div>
+        <div id="signupPanel" class="hidden">
+          <div class="login-form">
+            <input id="createEmailInput" type="email" placeholder="Email" class="login-input" />
+            <input id="createPasswordInput" type="password" placeholder="Password" class="login-input" />
+            <input id="confirmPasswordInput" type="password" placeholder="Confirm Password" class="login-input" />
+            <div id="createAccountError" class="login-error"></div>
+            <button id="createAccountButton" class="login-button">Create Account</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="resumeView" class="hidden">
+      <button id="resumeBackButton" class="resume-back-button hidden">Back</button>
+      <h1 class="resume-title">Upload Your Resume</h1>
+      <div id="resumeDropZone" class="resume-drop-zone">
+        <p>Drag & drop your PDF here</p>
+        <p class="resume-drop-subtitle">or click to browse</p>
+        <input id="resumeFileInput" type="file" accept="application/pdf" class="hidden" />
+      </div>
+      <div id="resumeUploadError" class="login-error"></div>
+      <div id="resumeUploadStatus" class="resume-upload-status"></div>
+    </div>
+    <div id="generatingView" class="hidden">
+      <h1 class="generating-title">Generating Resumes</h1>
+      <div class="generating-spinner"></div>
+      <div id="generatingProgress" class="generating-progress">Preparing...</div>
+    </div>
+    <div id="resultsView" class="hidden">
+      <div id="resumeCard" class="resume-card"></div>
+      <div class="results-nav">
+        <button id="carouselPrev" class="carousel-button" disabled>&#8592; Prev</button>
+        <span id="carouselCounter" class="carousel-counter"></span>
+        <button id="carouselNext" class="carousel-button" disabled>Next &#8594;</button>
+      </div>
+      <div id="carouselDots" class="carousel-dots"></div>
+      <button id="resultsBackButton" class="results-back-button">Back to Main</button>
+    </div>
+    <div id="mainView" class="hidden">
+      <div class="main-header">
+        <h1>Auto<span class="accent">Shake</span></h1>
+        <div class="header-actions">
+          <button id="logoutButton">Log Out</button>
+          <button id="updateResumeButton" class="update-resume-button">Update Resume</button>
+          <div id="emailDisplay"></div>
+        </div>
+      </div>
+      <div class="toggle-container">
+        <div id="trackingLabel" class="state-text"><span class="status-dot"></span>Tracking Paused</div>
+        <label class="switch">
+          <input id="stateToggle" type="checkbox" />
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="graphql-section-header">
+        <h3>GraphQL Responses</h3>
+        <button id="toggleGraphql">Hide</button>
+      </div>
+      <div id="graphqlResponses"></div>
+      <div class="jobs-card">
+        <div id="jobList"></div>
+      </div>
+      <div class="submit-container">
+        <button id="submitButton" disabled>No jobs to submit</button>
+      </div>
+    </div>
+    <script src="dist/popup/popup.js"></script>
+  </body>
+</html>

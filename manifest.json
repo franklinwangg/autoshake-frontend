@@ -4,10 +4,8 @@
   "version": "1.0",
   "manifest_version": 3,
   "action": {
-    "default_icon": "public/images/autoshake_logo_no_border_gimp.png"
-  },
-  "side_panel": {
-    "default_path": "public/hello.html"
+    "default_popup": "hello.html",
+    "default_icon": "images/autoshake_logo_no_border_gimp.png"
   },
   "background": {
     "service_worker": "dist/background.js"
@@ -25,5 +23,5 @@
       "run_at": "document_start"
     }
   ],
-  "permissions": ["scripting", "storage", "tabs", "sidePanel"]
+  "permissions": ["scripting", "storage", "tabs"]
 }
